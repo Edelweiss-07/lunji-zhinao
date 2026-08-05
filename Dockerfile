@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # ---------- 应用代码 ----------
+COPY requirements.txt ./
 COPY app/ ./
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY start.sh /start.sh
