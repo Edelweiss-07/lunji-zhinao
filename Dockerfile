@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     curl \
     ca-certificates \
+    gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
 # Playwright (chromium) 运行所需的系统库
