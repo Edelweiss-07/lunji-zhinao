@@ -178,14 +178,21 @@ logging.basicConfig(
 log = logging.getLogger("agent_vision")
 
 # ===== 全局最新诊断结果（供 HTTP 服务读取） =====
+# 初始化为"已就绪·等待首次扫描"状态：让前端首屏不会显示一片空白横线，
+# 而是显示"已启动，5 分钟后第一次扫描开始"
 LATEST_RESULT = {
     "id": None,
-    "time": None,
+    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     "load": None,
     "screenshot": None,
     "screenshot_base64": None,
     "sensors": {},
-    "assessment": None,
+    "assessment": {
+        "system": "冷却系统",
+        "overall_status": "等待",
+        "assessment": "智能体服务已就绪，等待首次视觉扫描（约 5 分钟内完成）...",
+        "concerns": []
+    },
     "anomalies": [],
     "diagnosis": None,
     "vision_method": None,
@@ -256,6 +263,7 @@ def vision_assess(screenshot_path):
             model=DSR1_MODEL,
             temperature=0.1,
             max_tokens=700,
+            timeout=25,  # 单次调用最长 25 秒，避免学校 API 卡死整个 capture_panel
             messages=[
                 {"role": "system", "content": VISION_READ_PROMPT},
                 {"role": "user", "content": [
@@ -301,6 +309,7 @@ def vision_assess(screenshot_path):
             model=DSR1_MODEL,
             temperature=0.3,
             max_tokens=400,
+            timeout=25,
             messages=[
                 {"role": "system", "content": ASSESS_PROMPT},
                 {"role": "user", "content": assess_input},
@@ -549,6 +558,7 @@ def llm_diagnose(load, anomalies, all_sensors, kb_context="", kb_sources=None):
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=1500,
+            timeout=25,
         )
         result = resp.choices[0].message.content.strip()
         # 提取 JSON
@@ -645,10 +655,25 @@ class DiagnosisHandler(BaseHTTPRequestHandler):
             else:
                 self._json(404, {"error": "screenshot not found"})
         elif path == "/health":
+            # 计算是否在诊断中：
+            # 1) LATEST_RESULT.id 是空 → 从未成功跑过 capture_panel → "已暂停"
+            # 2) LATEST_RESULT.id 有值 且距今 < 6 分钟 → 监控循环活跃 → "诊断中"
+            # 3) LATEST_RESULT.id 有值 且距今 > 6 分钟 → 卡住了 → "已暂停"（异常）
+            last_t = LATEST_RESULT.get("time")
+            record_id = LATEST_RESULT.get("id")
+            diagnosing = False
+            if record_id and last_t:
+                try:
+                    last_dt = datetime.strptime(last_t, "%Y-%m-%d %H:%M:%S")
+                    age_sec = (datetime.now() - last_dt).total_seconds()
+                    diagnosing = 0 <= age_sec < (INTERVAL_SEC + 60)
+                except Exception:
+                    pass
             self._json(200, {
                 "status": "ok",
                 "port": HTTP_PORT,
                 "interval_sec": INTERVAL_SEC,
+                "diagnosing": diagnosing,
                 "last_check": LATEST_RESULT.get("time"),
                 "next_check": LATEST_RESULT.get("next_check"),
                 "result_status": LATEST_RESULT.get("status"),

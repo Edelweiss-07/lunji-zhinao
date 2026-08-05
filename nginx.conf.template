@@ -17,6 +17,12 @@ http {
         # HF 会注入 $PORT（默认 7860）；envsubst 只替换 ${PORT}
         listen ${PORT};
 
+        # Render 注入 PORT=10000 会让 nginx 内部 301 Location 带端口
+        # (e.g. http://host:10000/ai/)，浏览器跟随后直连 10000 会 timeout
+        # 关闭端口重定向，让 Location 用相对路径，浏览器自动用原 host:port
+        port_in_redirect off;
+        absolute_redirect off;
+
         # ---- Gradio 演示（7861）----
         # 注意：Gradio 设了 root_path="/demo"，proxy_pass 不能带末尾斜杠，
         # 否则 /demo 前缀会被剥离，Gradio 收到 /queue/join 而与 root_path 不匹配
@@ -34,6 +40,13 @@ http {
         }
 
         # ---- 视觉诊断智能体（7864）----
+        location = /ai {
+            # /ai 不带尾斜杠直接重写到 7862 静态资源，避开 7864 没有 / 路由的 501
+            rewrite ^ /static/cooling-diagnosis.html break;
+            proxy_pass http://127.0.0.1:7862;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+        }
         location /ai/ {
             proxy_pass http://127.0.0.1:7864/;
             proxy_http_version 1.1;
