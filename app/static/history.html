@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>历史测试数据 — Marine Engine AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<style>
+:root {
+  --bg: #FFFFFF;
+  --bg-soft: #F8F8F8;
+  --bg-hover: #EFEFEF;
+  --bg-card: #FFFFFF;
+  --fg: #211922;
+  --fg-dim: #5F5F5F;
+  --fg-muted: #ADADAD;
+  --accent: #E60023;
+  --accent-hover: #AD081B;
+  --accent-soft: rgba(230,0,35,0.08);
+  --blue: #0074E8;
+  --green: #0F9D58;
+  --warn: #E8821E;
+  --danger: #D92D20;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.16);
+  --radius-lg: 20px;
+  --radius: 16px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+  --font: 'Inter','Noto Sans SC',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+  --transition-slow: 0.35s cubic-bezier(0.4,0,0.2,1);
+  --bounce: cubic-bezier(0.34,1.56,0.64,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:transparent;color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+/* ====== Scrollbar ====== */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#D5D5D5;border-radius:10px;border:2px solid var(--bg-soft)}
+::-webkit-scrollbar-thumb:hover{background:#B5B5B5}
+
+/* ====== Scroll Progress Bar ====== */
+.scroll-progress{position:fixed;top:64px;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),#FF4D6A,var(--blue));z-index:101;transition:width 0.1s linear;box-shadow:0 0 8px rgba(230,0,35,0.4)}
+
+/* ====== Nav — Pinterest Style ====== */
+.nav{position:fixed;top:0;left:0;right:0;height:64px;z-index:100;background:var(--bg);border-bottom:1px solid #EFEFEF;display:flex;align-items:center;padding:0 12px;gap:8px}
+.nav-brand{display:flex;align-items:center;gap:0;font-weight:700;font-size:22px;color:var(--accent);text-decoration:none;letter-spacing:-0.02em;white-space:nowrap;padding:0 8px}
+.nav-brand-icon{width:36px;height:36px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:800;margin-right:10px;transition:transform 0.3s var(--bounce)}
+.nav-brand:hover .nav-brand-icon{transform:rotate(-12deg) scale(1.1)}
+.nav-brand-text{color:var(--accent)}
+.nav-search-wrap{flex:1;max-width:680px;position:relative;margin:0 8px}
+.nav-search{width:100%;height:44px;background:var(--bg-hover);border:2px solid transparent;border-radius:22px;padding:0 16px 0 44px;font-size:14px;font-family:var(--font);color:var(--fg);outline:none;transition:all var(--transition)}
+.nav-search:focus{background:var(--bg);border-color:var(--blue);box-shadow:0 0 0 4px rgba(0,116,232,0.1)}
+.nav-search::placeholder{color:var(--fg-muted)}
+.nav-search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--fg-muted);pointer-events:none}
+.nav-actions{display:flex;align-items:center;gap:4px}
+.nav-link{color:var(--fg);text-decoration:none;font-size:14px;font-weight:700;padding:10px 14px;border-radius:var(--radius-xs);transition:background var(--transition);white-space:nowrap}
+.nav-link:hover{background:var(--bg-hover)}
+.nav-link.accent{color:var(--accent)}
+.nav-link.accent:hover{background:var(--accent-soft)}
+
+/* ====== Layout ====== */
+.page{padding-top:64px}
+.section{padding:32px 16px;max-width:1400px;margin:0 auto}
+.section-header{margin-bottom:20px}
+.section-label{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:4px 12px;border-radius:100px;margin-bottom:10px}
+.section-title{font-size:28px;font-weight:800;color:var(--fg);margin-bottom:4px;letter-spacing:-0.02em;line-height:1.2}
+.section-desc{font-size:14px;color:var(--fg-dim);max-width:600px;line-height:1.6}
+
+/* ====== Hero — Compact Welcome ====== */
+.hero{background:linear-gradient(135deg,#E60023 0%,#AD081B 50%,#7A0A18 100%);color:#fff;padding:40px 16px;position:relative;overflow:hidden}
+#heroParticles{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.hero::after{content:'';position:absolute;bottom:-30%;left:-5%;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,0.05) 0%,transparent 70%);pointer-events:none}
+.hero-inner{max-width:1400px;margin:0 auto;position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap}
+.hero-text{flex:1;min-width:300px}
+.hero-eyebrow{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.7);margin-bottom:8px}
+.hero-title{font-size:32px;font-weight:800;margin-bottom:8px;letter-spacing:-0.02em;line-height:1.2}
+.hero-subtitle{font-size:14px;color:rgba(255,255,255,0.8);max-width:480px;line-height:1.6}
+.hero-kpis{display:flex;gap:12px;flex-wrap:wrap}
+.hero-kpi{background:rgba(255,255,255,0.12);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.18);border-radius:var(--radius);padding:16px 24px;text-align:center;min-width:120px;transition:transform var(--transition),background var(--transition)}
+.hero-kpi:hover{transform:translateY(-4px);background:rgba(255,255,255,0.18)}
+.hero-kpi-value{font-size:28px;font-weight:800;letter-spacing:-0.02em;line-height:1;color:#fff}
+.hero-kpi-value.highlight{color:#FFD66B}
+.hero-kpi-label{font-size:11px;color:rgba(255,255,255,0.75);margin-top:6px;font-weight:600}
+
+/* ====== Masonry Gallery ====== */
+.gallery-grid{column-count:4;column-gap:16px}
+.gallery-card{break-inside:avoid;margin-bottom:16px;background:var(--bg-card);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform 0.2s var(--bounce),box-shadow var(--transition);position:relative;box-shadow:var(--shadow-xs);transform-style:preserve-3d;will-change:transform}
+.gallery-card:hover{box-shadow:var(--shadow-lg)}
+.gallery-card.active{box-shadow:0 0 0 3px var(--accent),var(--shadow-md)}
+.gallery-cover{height:140px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.gallery-cover.tall{height:180px}
+.gallery-cover.short{height:100px}
+.gallery-cover-pattern{position:absolute;inset:0;opacity:0.15;background-image:radial-gradient(circle at 20% 30%,#fff 1.5px,transparent 1.5px),radial-gradient(circle at 70% 60%,#fff 1.5px,transparent 1.5px);background-size:40px 40px,60px 60px;transition:transform 0.3s ease}
+.gallery-card:hover .gallery-cover-pattern{transform:scale(1.15)}
+.gallery-cover-icon{font-size:36px;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3));position:relative;z-index:1;transition:transform 0.3s var(--bounce)}
+.gallery-card:hover .gallery-cover-icon{transform:scale(1.2)}
+.gallery-cover-label{position:absolute;top:12px;left:12px;background:rgba(255,255,255,0.9);backdrop-filter:blur(8px);color:var(--fg);padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700;z-index:1}
+.gallery-cover-save{position:absolute;top:12px;right:12px;background:var(--accent);color:#fff;padding:6px 14px;border-radius:100px;font-size:12px;font-weight:700;z-index:1;opacity:0;transform:translateY(-4px) scale(0.9);transition:all 0.25s var(--bounce)}
+.gallery-card:hover .gallery-cover-save{opacity:1;transform:translateY(0) scale(1)}
+.gallery-body{padding:14px 16px}
+.gallery-card-label{font-size:15px;font-weight:700;color:var(--fg);margin-bottom:6px;line-height:1.3}
+.gallery-card-meta{font-size:12px;color:var(--fg-dim);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.gallery-card-badge{display:inline-flex;align-items:center;gap:3px;background:var(--bg-hover);color:var(--fg-dim);padding:3px 8px;border-radius:100px;font-size:11px;font-weight:600}
+.gallery-card-badge.accent{background:var(--accent-soft);color:var(--accent)}
+
+/* Ripple effect */
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,0.5);transform:scale(0);animation:rippleAnim 0.6s ease-out;pointer-events:none;z-index:2}
+@keyframes rippleAnim{to{transform:scale(4);opacity:0}}
+
+/* ====== Chart Section ====== */
+.chart-card{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+.chart-controls{display:flex;align-items:center;gap:8px;padding:16px 20px;border-bottom:1px solid #F0F0F0;flex-wrap:wrap}
+.chart-tab{background:transparent;border:none;border-radius:100px;padding:8px 18px;font-size:13px;font-weight:700;color:var(--fg-dim);cursor:pointer;font-family:var(--font);transition:all var(--transition)}
+.chart-tab:hover{background:var(--bg-hover);color:var(--fg)}
+.chart-tab.active{background:var(--fg);color:#fff;transform:scale(1.05)}
+.chart-select{background:var(--bg-hover);border:2px solid transparent;border-radius:100px;padding:8px 16px;font-size:13px;color:var(--fg);font-family:var(--font);outline:none;cursor:pointer;margin-left:auto;max-width:280px;transition:all var(--transition)}
+.chart-select:focus{border-color:var(--blue);background:var(--bg)}
+.chart-panel{min-height:480px;position:relative;transition:opacity 0.3s ease}
+.chart-panel.switching{opacity:0}
+.chart-empty{display:flex;align-items:center;justify-content:center;min-height:480px;color:var(--fg-muted);flex-direction:column;gap:12px;text-align:center}
+.chart-empty-icon{font-size:48px;opacity:0.4;animation:floatBob 3s ease-in-out infinite}
+@keyframes floatBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* ====== Matrix Grid ====== */
+.matrix-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.matrix-card{background:var(--bg-card);border:1px solid #F0F0F0;border-radius:var(--radius-sm);padding:16px;transition:all var(--transition);box-shadow:var(--shadow-xs);position:relative;overflow:hidden}
+.matrix-card::before{content:'';position:absolute;inset:0;border-radius:var(--radius-sm);padding:2px;background:linear-gradient(135deg,var(--accent),var(--blue));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity var(--transition)}
+.matrix-card:hover{box-shadow:var(--shadow-md);transform:translateY(-3px) scale(1.02)}
+.matrix-card:hover::before{opacity:1}
+.matrix-card.warn{border-color:rgba(232,130,30,0.3);background:rgba(232,130,30,0.03)}
+.matrix-card.danger{border-color:rgba(217,45,32,0.3);background:rgba(217,45,32,0.03)}
+.matrix-card.danger::before{background:linear-gradient(135deg,var(--danger),var(--warn))}
+.matrix-card.warn::before{background:linear-gradient(135deg,var(--warn),#FFD93D)}
+.matrix-param{font-size:11px;color:var(--fg-dim);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:0.03em}
+.matrix-color-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor}
+.matrix-value{font-size:28px;font-weight:800;color:var(--fg);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1.2}
+.matrix-unit{font-size:12px;color:var(--fg-muted);margin-left:4px;font-weight:500}
+.matrix-diff{font-size:12px;font-weight:700;margin-top:6px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px}
+.matrix-diff.ok{color:var(--green);background:rgba(15,157,88,0.08)}
+.matrix-diff.warn{color:var(--warn);background:rgba(232,130,30,0.08)}
+.matrix-diff.danger{color:var(--danger);background:rgba(217,45,32,0.08)}
+
+/* ====== Full List ====== */
+.list-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.list-search{background:var(--bg-card);border:2px solid #F0F0F0;border-radius:100px;padding:10px 18px;color:var(--fg);font-size:13px;font-family:var(--font);outline:none;width:280px;transition:all var(--transition)}
+.list-search:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(0,116,232,0.08)}
+.list-search::placeholder{color:var(--fg-muted)}
+.list-filter{background:var(--bg-card);border:2px solid #F0F0F0;border-radius:100px;padding:8px 16px;font-size:13px;font-weight:600;color:var(--fg-dim);cursor:pointer;font-family:var(--font);transition:all var(--transition)}
+.list-filter:hover{background:var(--bg-hover);border-color:#D5D5D5;transform:translateY(-1px)}
+.list-filter.active{background:var(--fg);border-color:var(--fg);color:#fff}
+.list-card{background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow-xs);overflow:hidden}
+.list-table{width:100%;border-collapse:collapse}
+.list-table thead th{padding:14px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--fg-muted);text-transform:uppercase;letter-spacing:0.05em;background:var(--bg-soft);border-bottom:1px solid #F0F0F0}
+.list-table thead th:last-child{text-align:right}
+.list-table tbody tr{cursor:pointer;transition:background var(--transition),transform var(--transition);border-bottom:1px solid #F6F6F6}
+.list-table tbody tr:hover{background:var(--bg-hover)}
+.list-table tbody tr.active{background:var(--accent-soft)}
+.list-table tbody tr.active td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.list-table tbody td{padding:14px 16px;font-size:13px;color:var(--fg);vertical-align:middle}
+.list-table tbody td:last-child{text-align:right}
+.list-badge{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);color:var(--accent);padding:4px 10px;border-radius:100px;font-size:11px;font-weight:700;transition:all var(--transition)}
+.list-table tbody tr:hover .list-badge{background:var(--accent);color:#fff}
+.list-type-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:100px;font-size:11px;font-weight:600}
+.list-type-tag.sensor{background:rgba(0,116,232,0.08);color:var(--blue)}
+.list-type-tag.image{background:rgba(230,0,35,0.08);color:var(--accent)}
+.list-empty{text-align:center;padding:64px 20px;color:var(--fg-muted)}
+.list-empty-icon{font-size:40px;margin-bottom:12px;opacity:0.3}
+
+/* ====== Footer ====== */
+.footer{text-align:center;padding:32px 16px 48px;color:var(--fg-muted);font-size:12px}
+
+/* ====== Floating Section Nav ====== */
+.section-nav{position:fixed;right:20px;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;gap:12px;opacity:0;transition:opacity 0.4s ease}
+.section-nav.visible{opacity:1}
+.section-nav-dot{width:10px;height:10px;border-radius:50%;background:#D5D5D5;border:none;cursor:pointer;transition:all var(--transition);position:relative;padding:0}
+.section-nav-dot:hover{background:var(--accent);transform:scale(1.4)}
+.section-nav-dot.active{background:var(--accent);transform:scale(1.3)}
+.section-nav-dot::after{content:attr(data-label);position:absolute;right:18px;top:50%;transform:translateY(-50%);background:var(--fg);color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity var(--transition)}
+.section-nav-dot:hover::after{opacity:1}
+
+/* ====== Back to Top ====== */
+.back-top{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:var(--fg);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:90;opacity:0;transform:translateY(20px) scale(0.8);transition:all 0.3s var(--bounce);box-shadow:var(--shadow-lg)}
+.back-top.visible{opacity:1;transform:translateY(0) scale(1)}
+.back-top:hover{background:var(--accent);transform:translateY(-4px) scale(1.1)}
+
+/* ====== Skeleton Loading ====== */
+.skeleton{background:linear-gradient(90deg,#F0F0F0 25%,#E5E5E5 50%,#F0F0F0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--radius-xs)}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skel-card{break-inside:avoid;margin-bottom:16px;background:var(--bg-card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-xs)}
+.skel-cover{height:140px}
+.skel-body{padding:14px 16px}
+.skel-line{height:12px;border-radius:6px;margin-bottom:8px}
+.skel-line.w70{width:70%}
+.skel-line.w40{width:40%}
+
+/* ====== Scroll Reveal ====== */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity 0.6s ease,transform 0.6s var(--bounce)}
+.reveal.in{opacity:1;transform:translateY(0)}
+
+/* ====== Card Load Animation ====== */
+@keyframes cardIn{from{opacity:0;transform:translateY(24px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.gallery-card.anim{animation:cardIn 0.5s var(--bounce) both}
+
+/* ====== Count Up Glow ====== */
+.counting{text-shadow:0 0 12px rgba(255,214,107,0.6)}
+
+/* ====== Responsive ====== */
+@media(max-width:1200px){.gallery-grid{column-count:3}.section-nav{display:none}}
+@media(max-width:900px){
+  .gallery-grid{column-count:2}
+  .hero-title{font-size:26px}
+  .hero-kpi{padding:12px 18px;min-width:100px}
+  .hero-kpi-value{font-size:24px}
+  .matrix-grid{grid-template-columns:repeat(2,1fr)}
+  .section-title{font-size:22px}
+  .nav-brand{font-size:18px}
+  .nav-search-wrap{order:3;flex-basis:100%;margin:0}
+  .section-nav{display:none}
+}
+@media(max-width:600px){
+  .gallery-grid{column-count:1}
+  .list-search{width:100%}
+  .list-toolbar{flex-direction:column;align-items:stretch}
+  .chart-controls{flex-direction:column;align-items:stretch}
+  .chart-select{margin-left:0;max-width:none}
+}
+
+/* ============================================================
+   Ambient Background Layer — Pinterest-style premium base
+   ============================================================ */
+.ambient-bg{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden;background:#FAFAFA}
+.ambient-bg::before{content:'';position:absolute;inset:0;background:
+  radial-gradient(ellipse 80% 60% at 15% 0%,rgba(0,116,232,0.10) 0%,transparent 55%),
+  radial-gradient(ellipse 70% 50% at 85% 10%,rgba(230,0,35,0.08) 0%,transparent 55%),
+  radial-gradient(ellipse 60% 50% at 50% 100%,rgba(161,140,209,0.08) 0%,transparent 55%),
+  linear-gradient(180deg,#FFFFFF 0%,#FAFAFA 50%,#F6F6F8 100%)}
+.ambient-bg::after{content:'';position:absolute;inset:0;opacity:0.55;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.ambient-blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:0.4;will-change:transform;animation:blobFloat 22s ease-in-out infinite}
+.ambient-blob.b1{width:540px;height:540px;background:radial-gradient(circle,#FFD6E0 0%,transparent 70%);top:-160px;left:-110px;animation-delay:0s}
+.ambient-blob.b2{width:500px;height:500px;background:radial-gradient(circle,#C7DDFF 0%,transparent 70%);top:32%;right:-130px;animation-delay:-7s}
+.ambient-blob.b3{width:440px;height:440px;background:radial-gradient(circle,#E4D6FF 0%,transparent 70%);bottom:-120px;left:28%;animation-delay:-14s}
+.ambient-blob.b4{width:380px;height:380px;background:radial-gradient(circle,#D4F4DD 0%,transparent 70%);top:60%;left:-80px;animation-delay:-3s}
+@keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(34px,-46px) scale(1.08)}66%{transform:translate(-28px,32px) scale(0.94)}}
+
+/* ============================================================
+   Nav — Glassmorphism
+   ============================================================ */
+.nav{background:rgba(255,255,255,0.72);backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);border-bottom:1px solid rgba(0,0,0,0.04);box-shadow:0 1px 0 rgba(255,255,255,0.7) inset,0 4px 24px rgba(0,0,0,0.04);transition:box-shadow 0.3s ease,background 0.3s ease}
+.nav.scrolled{background:rgba(255,255,255,0.82);box-shadow:0 1px 0 rgba(255,255,255,0.8) inset,0 10px 34px rgba(0,0,0,0.08)}
+.nav-search{background:rgba(239,239,239,0.55);backdrop-filter:blur(8px)}
+.nav-search:focus{background:rgba(255,255,255,0.96);box-shadow:0 0 0 4px rgba(0,116,232,0.1),0 2px 10px rgba(0,0,0,0.05)}
+
+/* ============================================================
+   Hero — video ambient layer + richer gradient
+   ============================================================ */
+.hero{background:linear-gradient(135deg,#E60023 0%,#AD081B 45%,#5A0810 100%);position:relative}
+.hero-video-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.16;mix-blend-mode:screen;pointer-events:none;z-index:0}
+.hero::before{content:'';position:absolute;inset:0;background:
+  radial-gradient(ellipse at 20% 30%,rgba(255,214,107,0.18) 0%,transparent 50%),
+  radial-gradient(ellipse at 80% 70%,rgba(255,100,100,0.22) 0%,transparent 55%);pointer-events:none;z-index:1}
+#heroParticles{z-index:1}
+.hero-inner{position:relative;z-index:2}
+
+/* ============================================================
+   Cards — refined multi-layer shadows (Pinterest)
+   ============================================================ */
+.gallery-card{box-shadow:0 1px 2px rgba(0,0,0,0.04),0 2px 8px rgba(0,0,0,0.04);background:rgba(255,255,255,0.96);backdrop-filter:blur(6px)}
+.gallery-card:hover{box-shadow:0 10px 28px rgba(0,0,0,0.1),0 2px 6px rgba(0,0,0,0.06)}
+.chart-card{box-shadow:0 1px 2px rgba(0,0,0,0.04),0 10px 28px rgba(0,0,0,0.05);border:1px solid rgba(0,0,0,0.03);background:rgba(255,255,255,0.96);backdrop-filter:blur(8px)}
+.list-card{box-shadow:0 1px 2px rgba(0,0,0,0.04),0 6px 18px rgba(0,0,0,0.04);border:1px solid rgba(0,0,0,0.03);background:rgba(255,255,255,0.96);backdrop-filter:blur(8px)}
+.matrix-card{box-shadow:0 1px 2px rgba(0,0,0,0.04),0 2px 8px rgba(0,0,0,0.03);background:rgba(255,255,255,0.96);backdrop-filter:blur(6px)}
+.matrix-card:hover{box-shadow:0 10px 24px rgba(0,0,0,0.08),0 2px 6px rgba(0,0,0,0.05)}
+.list-table thead th{background:rgba(248,248,248,0.85);backdrop-filter:blur(4px)}
+
+/* ============================================================
+   Section decorative dividers + refined spacing
+   ============================================================ */
+.section{position:relative}
+.section::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:62%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,0,0,0.06) 50%,transparent)}
+.section:first-of-type::before{display:none}
+.section-label{box-shadow:0 1px 3px rgba(230,0,35,0.08)}
+.section-title{text-shadow:0 1px 0 rgba(255,255,255,0.6)}
+.footer{background:rgba(255,255,255,0.6);backdrop-filter:blur(6px);border-top:1px solid rgba(0,0,0,0.04)}
+
+/* back-top & section-nav refined */
+.back-top{box-shadow:0 8px 24px rgba(0,0,0,0.12),0 2px 6px rgba(0,0,0,0.08);backdrop-filter:blur(8px)}
+.section-nav-dot.active{box-shadow:0 0 0 4px rgba(230,0,35,0.15)}
+
+/* ====== Shark Mascot — floating companion (Pinterest red theme) ====== */
+.shark-mascot{position:fixed;bottom:24px;right:24px;width:84px;height:84px;z-index:95;cursor:pointer;animation:sharkFloat 4s ease-in-out infinite;will-change:transform}
+@keyframes sharkFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.shark-mascot-img,.shark-mascot-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:rgba(255,255,255,0.7);border:2px solid rgba(230,0,35,0.32);box-shadow:0 8px 24px rgba(0,0,0,0.12),0 0 24px rgba(230,0,35,0.14);transition:opacity 0.3s}
+.shark-mascot-video{opacity:0}
+.shark-mascot:hover .shark-mascot-img{opacity:0}
+.shark-mascot:hover .shark-mascot-video{opacity:1}
+.shark-mascot-bubble{position:absolute;bottom:calc(100% + 10px);right:50%;transform:translateX(50%) translateY(6px);background:var(--accent);color:#fff;padding:7px 14px;border-radius:14px;font-size:11.5px;font-weight:700;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity 0.3s,transform 0.3s;box-shadow:0 6px 18px rgba(230,0,35,0.35)}
+.shark-mascot-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--accent)}
+.shark-mascot:hover .shark-mascot-bubble{opacity:1;transform:translateX(50%) translateY(0)}
+@media(max-width:640px){.shark-mascot{width:60px;height:60px;bottom:16px;right:16px}.shark-mascot-bubble{font-size:10px;padding:5px 10px}}
+
+/* ====== Empty-state shark (方案 B) ====== */
+.empty-shark{width:84px;height:84px;object-fit:contain;margin-bottom:8px;opacity:0.9;filter:drop-shadow(0 4px 14px rgba(230,0,35,0.18));animation:sharkBob 3.2s ease-in-out infinite}
+@keyframes sharkBob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-4px) rotate(2deg)}}
+.empty-shark-hint{font-size:12px;color:var(--fg-muted);margin-top:6px}
+</style>
+</head>
+<body>
+
+<!-- ====== Ambient Background Layer ====== -->
+<div class="ambient-bg" aria-hidden="true">
+  <div class="ambient-blob b1"></div>
+  <div class="ambient-blob b2"></div>
+  <div class="ambient-blob b3"></div>
+  <div class="ambient-blob b4"></div>
+</div>
+
+<!-- Scroll Progress -->
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<!-- ====== Nav — Pinterest Style ====== -->
+<nav class="nav">
+  <a href="index.html" class="nav-brand">
+    <span class="nav-brand-icon">⚓</span><span class="nav-brand-text">轮机智脑</span>
+  </a>
+  <div class="nav-search-wrap">
+    <svg class="nav-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input type="text" class="nav-search" placeholder="搜索测试记录、传感器参数…" id="navSearch" oninput="syncSearch(this.value)">
+  </div>
+  <div class="nav-actions">
+    <a href="/" target="_blank" class="nav-link accent">返回首页</a>
+  </div>
+</nav>
+
+<div class="page">
+
+<!-- ====== Hero — Compact ====== -->
+<section class="hero" id="hero">
+  <video class="hero-video-bg" src="/static/agent-live-data.mp4" autoplay loop muted playsinline preload="auto"></video>
+  <canvas id="heroParticles"></canvas>
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-eyebrow">Marine Engine Intelligence</div>
+      <h1 class="hero-title">轮机智能运维 · 数据中枢</h1>
+      <p class="hero-subtitle">基于传感器历史测试数据的全维度可视化分析平台，为船舶轮机系统提供精准的工况回溯与趋势洞察。</p>
+    </div>
+    <div class="hero-kpis" id="heroKPIs">
+      <div class="hero-kpi"><div class="hero-kpi-value highlight">—</div><div class="hero-kpi-label">测试记录</div></div>
+      <div class="hero-kpi"><div class="hero-kpi-value">—</div><div class="hero-kpi-label">传感器参数</div></div>
+      <div class="hero-kpi"><div class="hero-kpi-value">—</div><div class="hero-kpi-label">最近更新</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Section 1: Gallery — Masonry ====== -->
+<section class="section reveal" id="gallery">
+  <div class="section-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+    <div>
+      <span class="section-label">📌 Recent Records</span>
+      <h2 class="section-title">最新测试记录</h2>
+      <p class="section-desc">点击任意卡片查看详情，传感器参数与趋势图将联动更新。</p>
+    </div>
+  </div>
+  <div class="gallery-grid" id="galleryGrid">
+    <div class="skel-card"><div class="skel-cover skeleton"></div><div class="skel-body"><div class="skel-line w70 skeleton"></div><div class="skel-line w40 skeleton"></div></div></div>
+    <div class="skel-card"><div class="skel-cover skeleton" style="height:100px"></div><div class="skel-body"><div class="skel-line w70 skeleton"></div><div class="skel-line w40 skeleton"></div></div></div>
+    <div class="skel-card"><div class="skel-cover skeleton" style="height:180px"></div><div class="skel-body"><div class="skel-line w70 skeleton"></div><div class="skel-line w40 skeleton"></div></div></div>
+    <div class="skel-card"><div class="skel-cover skeleton"></div><div class="skel-body"><div class="skel-line w70 skeleton"></div><div class="skel-line w40 skeleton"></div></div></div>
+  </div>
+</section>
+
+<!-- ====== Section 2: Charts ====== -->
+<section class="section reveal" id="charts">
+  <div class="section-header">
+    <span class="section-label">📈 Trend Analysis</span>
+    <h2 class="section-title" id="chartSectionTitle">趋势深度分析</h2>
+    <p class="section-desc" id="chartSectionDesc">选择记录后，可切换折线图、雷达图、热力图三种视图进行多维对比。</p>
+  </div>
+  <div class="chart-card">
+    <div class="chart-controls">
+      <button class="chart-tab active" onclick="switchChartTab('line',this)">📊 折线图</button>
+      <button class="chart-tab" onclick="switchChartTab('radar',this)">🎯 雷达图</button>
+      <button class="chart-tab" onclick="switchChartTab('heatmap',this)">🔥 热力图</button>
+      <select class="chart-select" id="chartRecordSelect" onchange="onChartRecordChange()">
+        <option value="">选择测试记录…</option>
+      </select>
+    </div>
+    <div class="chart-panel" id="chartPanel">
+      <div class="chart-empty">
+        <div class="chart-empty-icon">📡</div>
+        <div>选择一条测试记录以生成趋势图</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Section 3: Matrix ====== -->
+<section class="section reveal" id="matrix">
+  <div class="section-header">
+    <span class="section-label">🔧 Sensor Matrix</span>
+    <h2 class="section-title" id="matrixTitle">传感器参数矩阵</h2>
+    <p class="section-desc" id="matrixDesc">选中记录的全部传感器参数，与知识库基准值实时对比。</p>
+  </div>
+  <div class="matrix-grid" id="matrixGrid">
+    <div class="chart-empty" style="grid-column:1/-1;min-height:240px">
+      <img src="/static/shark.png" alt="小鲨" class="empty-shark">
+      <div>选择测试记录后，参数矩阵将在此展示</div>
+      <div class="empty-shark-hint">小鲨陪你等数据来 🌊</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Section 4: Full List ====== -->
+<section class="section reveal" id="fulllist">
+  <div class="section-header">
+    <span class="section-label">🗂️ All Records</span>
+    <h2 class="section-title">历史记录总览</h2>
+    <p class="section-desc">所有保存的测试数据，支持搜索与筛选。</p>
+  </div>
+  <div class="list-toolbar">
+    <input type="text" class="list-search" placeholder="搜索记录…" id="listSearch" oninput="filterList()">
+    <button class="list-filter active" onclick="setListFilter('all',this)">全部</button>
+    <button class="list-filter" onclick="setListFilter('recent',this)">最近 24h</button>
+    <button class="list-filter" onclick="setListFilter('sensor',this)">传感器</button>
+    <button class="list-filter" onclick="setListFilter('image',this)">图片分析</button>
+  </div>
+  <div class="list-card">
+    <table class="list-table">
+      <thead><tr><th>记录名称</th><th>时间</th><th>类型</th><th>数据量</th><th></th></tr></thead>
+      <tbody id="listBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<div class="footer">Marine Engine AI — 远洋船舶轮机智能运维平台</div>
+
+</div>
+
+<!-- Floating Section Nav -->
+<div class="section-nav" id="sectionNav">
+  <button class="section-nav-dot" data-target="gallery" data-label="最新记录"></button>
+  <button class="section-nav-dot" data-target="charts" data-label="趋势分析"></button>
+  <button class="section-nav-dot" data-target="matrix" data-label="参数矩阵"></button>
+  <button class="section-nav-dot" data-target="fulllist" data-label="记录总览"></button>
+</div>
+
+<!-- Back to Top -->
+<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+const API = '';
+let allRecords = [];
+let currentPoints = [];
+let currentBaselines = {};
+let currentChartType = 'line';
+let activeListFilter = 'all';
+let selectedFile = '';
+
+/* Theme palette for light mode */
+const THEME = {
+  paper: '#FFFFFF',
+  plot: '#FFFFFF',
+  font: '#5F5F5F',
+  fg: '#211922',
+  grid: 'rgba(0,0,0,0.06)',
+  zero: 'rgba(0,0,0,0.1)',
+  fgMuted: '#ADADAD',
+  hover: '#FFFFFF',
+  hoverBorder: 'rgba(230,0,35,0.25)',
+  accent: '#E60023',
+  blue: '#0074E8'
+};
+
+/* Cover gradients for different sensor categories */
+const COVER_GRADIENTS = [
+  ['#FF6B6B','#FF8E72'],['#4ECDC4','#44A3AA'],['#FFD93D','#FF9F1C'],
+  ['#A18CD1','#6C5CE7'],['#0F9D58','#5CB85C'],['#0074E8','#5B86E5'],
+  ['#E60023','#AD081B'],['#F093FB','#C44CFE'],['#30CFD0','#330867'],
+  ['#FA709A','#FEE140'],['#E07B39','#E8821E'],['#14B8A6','#0D9488']
+];
+function coverGradient(idx){return COVER_GRADIENTS[idx%COVER_GRADIENTS.length]}
+
+/* ====== Data Loading ====== */
+async function loadAll() {
+  try {
+    const res = await fetch(API + '/api/list');
+    allRecords = await res.json();
+    renderHero(allRecords);
+    renderGallery(allRecords.slice(0,12));
+    populateChartSelect(allRecords);
+    filterList();
+  } catch(e) {
+    document.getElementById('galleryGrid').innerHTML =
+      '<div class="chart-empty" style="grid-column:1/-1;min-height:200px"><div class="chart-empty-icon">🔌</div><div>无法连接历史数据服务 (7862)</div></div>';
+  }
+}
+
+/* ====== Hero ====== */
+function renderHero(records) {
+  const total = records.length;
+  const paramSet = new Set();
+  records.forEach(r => r.parameters && r.parameters.forEach(p => paramSet.add(p)));
+  const latest = records[0];
+  const latestTime = latest ? relativeTime(latest.timestamp) : '—';
+  document.getElementById('heroKPIs').innerHTML = `
+    <div class="hero-kpi"><div class="hero-kpi-value highlight" data-count="${total}">0</div><div class="hero-kpi-label">测试记录</div></div>
+    <div class="hero-kpi"><div class="hero-kpi-value" data-count="${paramSet.size}">0</div><div class="hero-kpi-label">传感器参数</div></div>
+    <div class="hero-kpi"><div class="hero-kpi-value">${latestTime}</div><div class="hero-kpi-label">最近更新</div></div>
+  `;
+  document.querySelectorAll('.hero-kpi-value[data-count]').forEach(el => {
+    countUp(el, parseInt(el.dataset.count));
+  });
+}
+
+function countUp(el, target) {
+  const duration = 1200;
+  const start = performance.now();
+  el.classList.add('counting');
+  function tick(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(eased * target);
+    if (t < 1) { requestAnimationFrame(tick); }
+    else { setTimeout(() => el.classList.remove('counting'), 300); }
+  }
+  requestAnimationFrame(tick);
+}
+
+function relativeTime(ts) {
+  if (!ts) return '—';
+  const diff = (Date.now() - new Date(ts).getTime())/1000;
+  if (diff<60) return '刚刚';
+  if (diff<3600) return Math.floor(diff/60)+'分前';
+  if (diff<86400) return Math.floor(diff/3600)+'h前';
+  return Math.floor(diff/86400)+'天前';
+}
+
+/* ====== Gallery — Masonry ====== */
+function renderGallery(records) {
+  const el = document.getElementById('galleryGrid');
+  if (!records.length) {
+    el.innerHTML = '<div class="chart-empty" style="grid-column:1/-1;min-height:240px"><img src="/static/shark.png" alt="小鲨" class="empty-shark"><div>暂无测试记录</div><div class="empty-shark-hint">小鲨陪你等数据来 🌊</div></div>';
+    return;
+  }
+  el.innerHTML = records.map((r,i) => {
+    const isImage = r.type==='image';
+    const [c1,c2] = coverGradient(i);
+    const paramCount = r.parameter_count||0;
+    const coverH = paramCount>5?'tall':(paramCount<=1?'short':'');
+    const coverIcon = isImage?'🖼️':(paramCount>4?'📊':(paramCount>1?'📈':'🌡️'));
+    const tagLabel = isImage?'图片分析':'传感器';
+    return `
+    <div class="gallery-card anim${r.filename===selectedFile?' active':''}" style="animation-delay:${i*0.06}s" onclick="selectRecord('${r.filename}');scrollToChart();rippleClick(event,this)">
+      <div class="gallery-cover ${coverH}" style="background:linear-gradient(135deg,${c1} 0%,${c2} 100%)">
+        <div class="gallery-cover-pattern"></div>
+        <span class="gallery-cover-label">${tagLabel}</span>
+        <span class="gallery-cover-save">查看详情</span>
+        <span class="gallery-cover-icon">${coverIcon}</span>
+      </div>
+      <div class="gallery-body">
+        <div class="gallery-card-label">${r.label}</div>
+        <div class="gallery-card-meta">
+          <span>${r.timestamp}</span>
+          <span class="gallery-card-badge accent">${isImage?r.point_count+' 消息':r.point_count+' 数据点'}</span>
+          ${!isImage&&paramCount?`<span class="gallery-card-badge">${paramCount} 参数</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* Ripple click effect */
+function rippleClick(e, el) {
+  const rect = el.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const x = e.clientX - rect.left - size/2;
+  const y = e.clientY - rect.top - size/2;
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = x + 'px';
+  ripple.style.top = y + 'px';
+  el.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+}
+
+/* ====== Chart Select ====== */
+function populateChartSelect(records) {
+  const sel = document.getElementById('chartRecordSelect');
+  sel.innerHTML = '<option value="">选择测试记录…</option>' +
+    records.filter(r => r.type !== 'image').map(r =>
+      `<option value="${r.filename}" ${r.filename===selectedFile?'selected':''}>${r.label} — ${r.timestamp}</option>`
+    ).join('');
+}
+
+function onChartRecordChange() {
+  const val = document.getElementById('chartRecordSelect').value;
+  if (val) selectRecord(val, true);
+}
+
+/* ====== Record Selection ====== */
+async function selectRecord(filename, fromChart) {
+  selectedFile = filename;
+  renderGallery(allRecords.slice(0,12));
+  document.getElementById('chartRecordSelect').value = filename;
+
+  try {
+    const res = await fetch(API + '/api/data?file=' + encodeURIComponent(filename));
+    const data = await res.json();
+
+    if (data.type === 'image') {
+      currentPoints = [];
+      currentBaselines = {};
+      document.getElementById('chartPanel').innerHTML =
+        '<div class="chart-empty"><div class="chart-empty-icon">🖼️</div><div>图片分析记录，暂无传感器数据</div></div>';
+      document.getElementById('matrixGrid').innerHTML =
+        '<div class="chart-empty" style="grid-column:1/-1;min-height:200px"><div class="chart-empty-icon">🖼️</div><div>图片分析记录，暂无参数矩阵</div></div>';
+      document.getElementById('chartSectionTitle').textContent = data.label;
+      document.getElementById('chartSectionDesc').textContent = data.timestamp + ' — 图片分析记录';
+    } else {
+      currentPoints = data.points || [];
+      currentBaselines = data.kb_baselines || {};
+      document.getElementById('chartSectionTitle').textContent = data.label;
+      document.getElementById('chartSectionDesc').textContent = data.timestamp + ' · ' + currentPoints.length + ' 个数据点';
+      renderMatrix(currentPoints);
+      renderCurrentChart();
+    }
+  } catch(e) {
+    console.error('Load detail failed', e);
+  }
+}
+
+function scrollToChart() {
+  document.getElementById('charts').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* ====== Matrix ====== */
+function renderMatrix(points) {
+  document.getElementById('matrixTitle').textContent = '传感器参数矩阵';
+  document.getElementById('matrixDesc').textContent = points.length + ' 个参数 · 与知识库基准值实时对比';
+
+  const grid = document.getElementById('matrixGrid');
+
+  if (!points.length) {
+    document.getElementById('matrixGrid').innerHTML =
+      '<div class="chart-empty" style="grid-column:1/-1;min-height:200px"><div class="chart-empty-icon">📋</div><div>无数据点</div></div>';
+    return;
+  }
+
+  document.getElementById('matrixGrid').innerHTML = points.map((p,i) => {
+    const diff = getDiff(p);
+    let cardCls = '';
+    let diffHTML = '';
+    if (diff) {
+      if (diff.cls==='danger') cardCls = ' danger';
+      else if (diff.cls==='warn') cardCls = ' warn';
+      const sign = diff.delta >= 0 ? '+' : '';
+      diffHTML = `<div class="matrix-diff ${diff.cls}">${sign}${diff.delta.toFixed(1)} ${diff.unit}</div>`;
+    }
+    return `
+    <div class="matrix-card${cardCls}" style="animation:cardIn 0.4s var(--bounce) ${i*0.05}s both">
+      <div class="matrix-param"><span class="matrix-color-dot" style="background:${p.color||'#5F5F5F'};color:${p.color||'#5F5F5F'}"></span>${p.param}</div>
+      <div class="matrix-value">${p.value!=null?p.value:'—'}<span class="matrix-unit">${p.kb_unit||''}</span></div>
+      ${diffHTML}
+    </div>`;
+  }).join('');
+}
+
+function getDiff(p) {
+  const bl = currentBaselines[p.param];
+  if (!bl || !bl.values || p.value==null) return null;
+  const kbVal = bl.values[p.load];
+  if (kbVal===undefined) return null;
+  const tol = bl.tolerance||0;
+  const delta = p.value - kbVal;
+  const abs = Math.abs(delta);
+  let cls = 'ok';
+  if (abs > tol) cls = 'danger';
+  else if (abs > tol*0.6) cls = 'warn';
+  return { delta, unit: bl.unit||'', cls, kbVal, tol };
+}
+
+/* ====== Chart Tabs ====== */
+function switchChartTab(type, btn) {
+  currentChartType = type;
+  document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const panel = document.getElementById('chartPanel');
+  panel.classList.add('switching');
+  setTimeout(() => {
+    renderCurrentChart();
+    panel.classList.remove('switching');
+  }, 250);
+}
+
+function renderCurrentChart() {
+  if (!currentPoints.length) return;
+  switch (currentChartType) {
+    case 'line': renderLineChart(); break;
+    case 'radar': renderRadarChart(); break;
+    case 'heatmap': renderHeatmapChart(); break;
+  }
+}
+
+/* ====== Line Chart — Light Theme ====== */
+function renderLineChart() {
+  const groups = {};
+  currentPoints.forEach(p => { if(!groups[p.param]) groups[p.param]=[]; groups[p.param].push(p); });
+  const names = Object.keys(groups);
+  const rows = Math.max(names.length, 1);
+  const traces = [];
+
+  names.forEach((param, idx) => {
+    const pts = groups[param].sort((a,b)=>a.load-b.load);
+    const color = pts[0].color || THEME.accent || '#E60023';
+    const bl = currentBaselines[param];
+    const unit = bl ? bl.unit : (pts[0].kb_unit||'');
+    const row = idx+1;
+
+    if (bl && bl.values) {
+      const tol = bl.tolerance||0;
+      const loads = Object.keys(bl.values).map(Number).sort((a,b)=>a-b);
+      const vals = loads.map(l=>bl.values[l]);
+      traces.push({x:loads,y:vals,type:'scatter',mode:'lines',line:{color,dash:'dash',width:1.5},xaxis:'x'+(row>1?row:''),yaxis:'y'+(row>1?row:''),showlegend:false,hoverinfo:'skip'});
+      traces.push({x:loads,y:vals.map(v=>v+tol),type:'scatter',mode:'lines',line:{color,width:0},xaxis:'x'+(row>1?row:''),yaxis:'y'+(row>1?row:''),showlegend:false,hoverinfo:'skip'});
+      traces.push({x:loads,y:vals.map(v=>v-tol),type:'scatter',mode:'lines',fill:'tonexty',fillcolor:hexToRgba(color,0.08),line:{color,width:0},xaxis:'x'+(row>1?row:''),yaxis:'y'+(row>1?row:''),showlegend:false,hoverinfo:'skip'});
+    }
+
+    traces.push({
+      x: pts.map(p=>p.load), y: pts.map(p=>p.value),
+      type:'scatter', mode:'markers+lines', name:param,
+      marker:{color,size:9,line:{width:2,color:'#FFFFFF'}},
+      line:{color,width:2.5,shape:'spline'},
+      text: pts.map(p=>`${p.param}<br>负载:${p.load}%<br>实测:${p.value} ${unit}`),
+      hoverinfo:'text',
+      xaxis:'x'+(row>1?row:''), yaxis:'y'+(row>1?row:''), showlegend:true
+    });
+  });
+
+  const layout = {
+    height: Math.max(rows*180, 400),
+    grid:{rows,columns:1,pattern:'independent',roworder:'top to bottom'},
+    margin:{l:60,r:30,t:10,b:40},
+    paper_bgcolor:THEME.paper, plot_bgcolor:THEME.plot,
+    font:{family:'Inter,Noto Sans SC',size:11,color:THEME.font},
+    showlegend:true,
+    legend:{orientation:'h',y:1.02,x:0.5,xanchor:'center',font:{size:10,color:THEME.font},bgcolor:'rgba(0,0,0,0)'},
+    hovermode:'closest',
+    hoverlabel:{bgcolor:THEME.hover,font:{color:THEME.fg,size:11},bordercolor:THEME.hoverBorder}
+  };
+
+  for (let i=0;i<rows;i++) {
+    const s = i>0?(i+1):'';
+    layout['xaxis'+s] = {title:i===rows-1?'负载 (%)':'',dtick:25,gridcolor:THEME.grid,zeroline:false,range:[15,115],color:THEME.fgMuted,linecolor:THEME.grid};
+    layout['yaxis'+s] = {gridcolor:THEME.grid,zeroline:false,color:THEME.fgMuted,linecolor:THEME.grid};
+  }
+
+  Plotly.newPlot('chartPanel', traces, layout, {displayModeBar:true,modeBarButtonsToRemove:['lasso2d','select2d','sendDataToCloud'],displaylogo:false,responsive:true});
+}
+
+/* ====== Radar Chart — Light Theme ====== */
+function renderRadarChart() {
+  const seen = new Set();
+  const top = currentPoints.filter(p => currentBaselines[p.param] && !seen.has(p.param) && (seen.add(p.param),true)).slice(0,6);
+  if (top.length < 3) {
+    document.getElementById('chartPanel').innerHTML = '<div class="chart-empty"><div class="chart-empty-icon">📊</div><div>需 ≥3 个带基准的参数</div></div>';
+    return;
+  }
+  Plotly.newPlot('chartPanel', [
+    {type:'scatterpolar',r:top.map(p=>p.value),theta:top.map(p=>p.param),fill:'toself',fillcolor:'rgba(230,0,35,0.1)',name:'实测值',marker:{color:THEME.accent,size:7},line:{color:THEME.accent,width:2.5}},
+    {type:'scatterpolar',r:top.map(p=>{const b=currentBaselines[p.param];return b&&b.values?(b.values[p.load]||Object.values(b.values)[0]):0}),theta:top.map(p=>p.param),fill:'none',name:'基准值',marker:{color:THEME.blue,size:6},line:{color:THEME.blue,width:1.5,dash:'dash'}}
+  ], {
+    polar:{bgcolor:'rgba(0,0,0,0)',radialaxis:{gridcolor:THEME.grid,color:THEME.fgMuted},angularaxis:{gridcolor:THEME.grid,color:THEME.font}},
+    paper_bgcolor:THEME.paper,plot_bgcolor:THEME.plot,
+    font:{family:'Inter,Noto Sans SC',color:THEME.font},
+    margin:{l:40,r:40,t:20,b:40},
+    legend:{orientation:'h',y:1.06,x:0.5,xanchor:'center',font:{size:10,color:THEME.font}},
+    hoverlabel:{bgcolor:THEME.hover,font:{color:THEME.fg},bordercolor:THEME.hoverBorder}
+  }, {displayModeBar:false,displaylogo:false,responsive:true});
+}
+
+/* ====== Heatmap — Light Theme ====== */
+function renderHeatmapChart() {
+  const groups = {};
+  currentPoints.forEach(p => { if(!groups[p.param]) groups[p.param]={}; groups[p.param][p.load]=p.value; });
+  const params = Object.keys(groups);
+  const loads = [...new Set(currentPoints.map(p=>p.load))].sort((a,b)=>a-b);
+  const z = params.map(p => loads.map(l => {
+    const v = groups[p][l]; const bl = currentBaselines[p];
+    if (v==null || !bl || !bl.values) return null;
+    const kb = bl.values[l]; if (kb===undefined) return null;
+    return v - kb;
+  }));
+  const text = params.map(p => loads.map(l => { const v=groups[p][l]; return v!=null?v.toFixed(1):''; }));
+  Plotly.newPlot('chartPanel', [{
+    type:'heatmap',z,x:loads.map(l=>l+'%'),y:params,text,texttemplate:'%{text}',textfont:{size:10,color:'#fff'},
+    colorscale:[[0,'#0074E8'],[0.3,'#A8D8FF'],[0.5,'#FFFFFF'],[0.7,'#FFD6A8'],[1,'#E60023']],zmid:0,showscale:true,
+    colorbar:{title:{text:'偏差',font:{color:THEME.font,size:10}},tickfont:{color:THEME.fgMuted,size:9},outlinewidth:0,thickness:12,len:0.7},
+    hovertemplate:'%{y} @ %{x}<br>实测: %{text}<br>偏差: %{z:.1f}<extra></extra>'
+  }], {
+    paper_bgcolor:THEME.paper,plot_bgcolor:THEME.plot,
+    font:{family:'Inter,Noto Sans SC',color:THEME.font},
+    margin:{l:150,r:60,t:20,b:40},
+    xaxis:{side:'top',color:THEME.font,gridcolor:THEME.grid,linecolor:THEME.grid},
+    yaxis:{color:THEME.font,gridcolor:THEME.grid,linecolor:THEME.grid},
+    hoverlabel:{bgcolor:THEME.hover,font:{color:THEME.fg},bordercolor:THEME.hoverBorder}
+  }, {displayModeBar:false,displaylogo:false,responsive:true});
+}
+
+/* ====== Full List ====== */
+function setListFilter(f, btn) {
+  activeListFilter = f;
+  document.querySelectorAll('.list-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterList();
+}
+
+function filterList() {
+  const q = (document.getElementById('listSearch').value||'').toLowerCase();
+  let r = allRecords;
+  if (activeListFilter==='recent') {
+    const day = Date.now()-86400000;
+    r = r.filter(x => new Date(x.timestamp).getTime() > day);
+  } else if (activeListFilter==='sensor') {
+    r = r.filter(x => x.type !== 'image');
+  } else if (activeListFilter==='image') {
+    r = r.filter(x => x.type === 'image');
+  }
+  if (q) r = r.filter(x => (x.label||'').toLowerCase().includes(q) || (x.timestamp||'').toLowerCase().includes(q));
+
+  const el = document.getElementById('listBody');
+  if (!r.length) {
+    el.innerHTML = '<tr><td colspan="5"><div class="list-empty"><div class="list-empty-icon">📡</div>无匹配记录</div></td></tr>';
+    return;
+  }
+  el.innerHTML = r.map((x,i) => `
+    <tr class="${x.filename===selectedFile?'active':''}" style="animation:cardIn 0.3s ease ${i*0.03}s both" onclick="selectRecord('${x.filename}');document.getElementById('charts').scrollIntoView({behavior:'smooth'})">
+      <td>${x.type==='image'?'🖼️ ':'📊 '}${x.label}</td>
+      <td style="color:var(--fg-dim)">${x.timestamp}</td>
+      <td><span class="list-type-tag ${x.type==='image'?'image':'sensor'}">${x.type==='image'?'图片分析':'传感器'}</span></td>
+      <td style="color:var(--fg-dim)">${x.point_count} ${x.type==='image'?'消息':'数据点'}</td>
+      <td><span class="list-badge">查看 →</span></td>
+    </tr>
+  `).join('');
+}
+
+/* ====== Nav Search Sync ====== */
+function syncSearch(val) {
+  document.getElementById('listSearch').value = val;
+  filterList();
+  if (val) {
+    document.getElementById('fulllist').scrollIntoView({behavior:'smooth'});
+  }
+}
+
+/* ====== Helpers ====== */
+function hexToRgba(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a})`}
+
+/* ====== Scroll Progress ====== */
+function updateScrollProgress() {
+  const h = document.documentElement;
+  const scrolled = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('scrollProgress').style.width = scrolled + '%';
+
+  const backTop = document.getElementById('backTop');
+  if (h.scrollTop > 400) backTop.classList.add('visible');
+  else backTop.classList.remove('visible');
+}
+window.addEventListener('scroll', updateScrollProgress, {passive:true});
+
+/* ====== Nav Scroll Shadow ====== */
+const navEl = document.querySelector('.nav');
+window.addEventListener('scroll', () => {
+  navEl.classList.toggle('scrolled', window.scrollY > 24);
+}, {passive:true});
+
+/* ====== Scroll Reveal ====== */
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); revealObserver.unobserve(e.target); } });
+}, {threshold:0.1});
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+/* ====== Section Nav Dots ====== */
+const sections = ['gallery','charts','matrix','fulllist'];
+const navDots = document.querySelectorAll('.section-nav-dot');
+const sectionObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navDots.forEach(d => d.classList.remove('active'));
+      const dot = document.querySelector(`.section-nav-dot[data-target="${e.target.id}"]`);
+      if (dot) dot.classList.add('active');
+    }
+  });
+}, {threshold:0.3});
+sections.forEach(id => { const s = document.getElementById(id); if (s) sectionObserver.observe(s); });
+navDots.forEach(dot => {
+  dot.addEventListener('click', () => {
+    document.getElementById(dot.dataset.target).scrollIntoView({behavior:'smooth'});
+  });
+});
+function toggleSectionNav() {
+  const nav = document.getElementById('sectionNav');
+  if (window.scrollY > 300) nav.classList.add('visible');
+  else nav.classList.remove('visible');
+}
+window.addEventListener('scroll', toggleSectionNav, {passive:true});
+
+/* ====== 3D Tilt on Gallery Cards ====== */
+document.addEventListener('mousemove', e => {
+  document.querySelectorAll('.gallery-card').forEach(card => {
+    const rect = card.getBoundingClientRect();
+    if (e.clientX < rect.left - 50 || e.clientX > rect.right + 50 || e.clientY < rect.top - 50 || e.clientY > rect.bottom + 50) {
+      card.style.transform = '';
+      return;
+    }
+    if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+      const cx = rect.left + rect.width/2;
+      const cy = rect.top + rect.height/2;
+      const rx = ((e.clientY - cy) / rect.height) * -8;
+      const ry = ((e.clientX - cx) / rect.width) * 8;
+      card.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-4px)`;
+    } else {
+      card.style.transform = '';
+    }
+  });
+});
+
+/* ====== Hero Particle Background ====== */
+(function initParticles() {
+  const canvas = document.getElementById('heroParticles');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  let W, H;
+  function resize() {
+    const hero = document.getElementById('hero');
+    W = canvas.width = hero.offsetWidth;
+    H = canvas.height = hero.offsetHeight;
+  }
+  function spawn() {
+    particles = [];
+    const count = Math.min(Math.floor(W / 18), 50);
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        r: Math.random() * 2 + 0.5,
+        a: Math.random() * 0.5 + 0.2
+      });
+    }
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${p.a})`;
+      ctx.fill();
+      for (let j = i + 1; j < particles.length; j++) {
+        const q = particles[j];
+        const dx = p.x - q.x, dy = p.y - q.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 100) {
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(q.x, q.y);
+          ctx.strokeStyle = `rgba(255,255,255,${0.15 * (1 - dist/100)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  resize(); spawn(); draw();
+  window.addEventListener('resize', () => { resize(); spawn(); });
+})();
+
+// Init
+loadAll();
+
+// ====== Shark Mascot interaction ======
+(function(){
+  var sm = document.getElementById('sharkMascot');
+  if (!sm) return;
+  var sv = sm.querySelector('.shark-mascot-video');
+  var loaded = false;
+  function ensure(){ if(!loaded){ sv.load(); loaded = true; } }
+  sm.addEventListener('mouseenter', function(){ ensure(); sv.play().catch(function(){}); });
+  sm.addEventListener('mouseleave', function(){ sv.pause(); sv.currentTime = 0; });
+  sm.addEventListener('click', function(){ ensure(); sv.play().catch(function(){}); });
+})();
+</script>
+
+<!-- ====== Shark Mascot — floating companion ====== -->
+<div class="shark-mascot" id="sharkMascot" aria-hidden="true">
+  <img class="shark-mascot-img" src="/static/shark.png" alt="小鲨">
+  <video class="shark-mascot-video" src="/static/shark-shake.mp4" muted loop playsinline preload="none"></video>
+  <div class="shark-mascot-bubble">小鲨陪你 🌊</div>
+</div>
+</body>
+</html>

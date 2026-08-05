@@ -1,0 +1,21 @@
+# Render 自动部署配置文件
+# 推到 GitHub 后 Render 会自动读取，无需手动填任何配置
+services:
+  - type: web
+    name: marine-engine-brain
+    runtime: docker
+    region: sin # 新加坡节点，国内访问最快
+    plan: free # 免费层
+    dockerfilePath: ./Dockerfile
+    startCommand: bash /start.sh
+    autoDeploy: true # GitHub 推送后自动更新
+    healthCheckPath: / # 健康检查路径
+    
+# 环境变量（学校API密钥，部署后在Render后台填Secrets即可）
+envVars:
+  - key: SCHOOL_API_BASE
+    fromSecret: SCHOOL_API_BASE
+  - key: SCHOOL_API_KEY_LLM
+    fromSecret: SCHOOL_API_KEY_LLM
+  - key: SCHOOL_API_KEY_DSR1
+    fromSecret: SCHOOL_API_KEY_DSR1

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>冷却系统监测模块 | 12K98ME-C7</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-deep:#020B14;--bg-panel:#0a1525;--bg-card:#0d1b30;--bg-card-h:#142640;
+  --border:rgba(0,191,165,0.18);--border-l:rgba(0,191,165,0.35);
+  --tx:#E6F0F5;--tx2:#A0B8C8;--tx3:#5a7a8a;
+  --teal:#00BFA5;--teal-glow:rgba(0,191,165,0.30);
+  --green:#00D68F;--yellow:#ffb700;--orange:#ff6b35;--red:#ff3b3b;--blue:#3b82f6;--cyan:#00d4ff;
+}
+body{font-family:'Inter','Microsoft YaHei','Segoe UI',sans-serif;background:var(--bg-deep);color:var(--tx);min-height:100vh;font-size:14px;background-image:radial-gradient(ellipse at 20% 0%,rgba(0,191,165,0.06) 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,rgba(0,212,255,0.04) 0%,transparent 55%)}
+.mono{font-family:'SF Mono','Cascadia Code','Consolas',monospace}
+
+/* 顶部 */
+.hdr{padding:24px 32px 16px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(0,191,165,0.04) 0%,transparent 100%)}
+.hdr-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hdr-icon{font-size:28px;color:var(--teal);filter:drop-shadow(0 0 10px var(--teal-glow))}
+.hdr-title{font-size:22px;font-weight:700;color:var(--tx);letter-spacing:0.5px}
+.hdr-sub{font-size:12px;color:var(--tx3);font-family:'SF Mono',monospace;letter-spacing:0.05em;margin-top:2px}
+.hdr-badge{margin-left:auto;display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(0,214,143,0.08);border:1px solid rgba(0,214,143,0.25);border-radius:20px;font-size:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* 知识库标识 */
+.kb-banner{margin:16px 32px 0;padding:12px 16px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:10px;font-size:12px;color:var(--tx2);line-height:1.6;display:flex;align-items:center;gap:10px}
+.kb-banner-tag{padding:2px 8px;background:rgba(0,212,255,0.15);color:var(--cyan);border-radius:4px;font-weight:600;font-size:11px;flex-shrink:0}
+
+/* 主体 */
+.main{padding:20px 32px 40px;max-width:1400px;margin:0 auto}
+
+/* 负载选择器 */
+.load-bar{display:flex;align-items:center;gap:12px;padding:16px 20px;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;flex-wrap:wrap}
+.load-label{font-size:13px;color:var(--tx2);font-weight:500}
+.load-btn{padding:10px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--tx2);cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:all .2s}
+.load-btn:hover{border-color:var(--border-l);background:var(--bg-card-h);color:var(--tx)}
+.load-btn.active{background:rgba(0,191,165,0.15);border-color:var(--teal);color:var(--teal);box-shadow:0 0 16px rgba(0,191,165,0.2)}
+.load-info{font-size:12px;color:var(--tx3);font-family:'SF Mono',monospace;display:flex;align-items:center;gap:8px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.5s infinite}
+
+/* 跳转视觉诊断 */
+.diag-link{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.3);border-radius:8px;color:var(--cyan);font-size:13px;font-weight:500;text-decoration:none;transition:all .2s;white-space:nowrap}
+.diag-link:hover{background:rgba(0,212,255,0.16);border-color:var(--cyan);box-shadow:0 0 14px rgba(0,212,255,0.25);color:var(--cyan)}
+
+/* 参数卡片网格 */
+.params-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:20px}
+.pc{min-width:0}
+/* 窄屏强制 4 列并排（≤1280 逻辑像素） */
+@media (max-width:1280px){
+  .params-grid{grid-template-columns:repeat(4,1fr)}
+}
+.pc{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;transition:all .2s;position:relative;overflow:hidden}
+.pc:hover{border-color:var(--border-l);box-shadow:0 4px 24px rgba(0,191,165,0.1)}
+.pc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--teal),transparent);opacity:0.4}
+.pc-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.pc-name{font-size:14px;color:var(--tx);font-weight:600}
+.pc-status{display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500}
+.pc-status.normal{background:rgba(0,214,143,0.1);color:var(--green);border:1px solid rgba(0,214,143,0.3)}
+.pc-status.warn{background:rgba(255,183,0,0.1);color:var(--yellow);border:1px solid rgba(255,183,0,0.3)}
+.pc-status.err{background:rgba(255,59,59,0.1);color:var(--red);border:1px solid rgba(255,59,59,0.3)}
+.pc-status.unknown{background:rgba(90,122,138,0.15);color:var(--tx3);border:1px solid rgba(90,122,138,0.3)}
+.pc-sym{font-size:10px;color:var(--tx3);font-family:'SF Mono',monospace;margin-top:2px}
+
+/* 基准显示 */
+.pc-baseline{margin-bottom:12px;padding:10px 12px;background:rgba(0,191,165,0.06);border:1px solid rgba(0,191,165,0.15);border-radius:8px}
+.pc-baseline-label{font-size:10px;color:var(--teal);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;font-weight:600}
+.pc-baseline-val{font-size:18px;color:var(--tx);font-weight:700;font-family:'SF Mono',monospace}
+.pc-baseline-range{font-size:11px;color:var(--tx2);margin-top:2px;font-family:'SF Mono',monospace}
+
+/* 实时值 */
+.pc-actual{margin-top:10px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px}
+.pc-actual-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.pc-actual-label{font-size:10px;color:var(--cyan);text-transform:uppercase;letter-spacing:0.5px;font-weight:600}
+.pc-actual-source{font-size:10px;color:var(--tx3);font-family:'SF Mono',monospace}
+.pc-actual-val{font-size:22px;color:var(--tx);font-weight:700;font-family:'SF Mono',monospace}
+.pc-delta{font-size:11px;margin-top:2px;font-family:'SF Mono',monospace}
+.pc-delta.normal{color:var(--green)}
+.pc-delta.warn{color:var(--yellow)}
+.pc-delta.err{color:var(--red)}
+
+/* 容差图 */
+.pc-tolerance{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.pc-tol-label{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.pc-tol-bar{position:relative;height:6px;background:var(--bg-card);border-radius:3px;overflow:hidden}
+.pc-tol-base{position:absolute;top:0;height:100%;background:rgba(0,191,165,0.3);border-radius:3px}
+.pc-tol-pointer{position:absolute;top:-3px;width:4px;height:12px;background:var(--teal);border-radius:2px;box-shadow:0 0 6px var(--teal-glow);transition:left .5s}
+.pc-tol-pointer.normal{background:var(--green);box-shadow:0 0 6px rgba(0,214,143,0.5)}
+.pc-tol-pointer.warn{background:var(--yellow);box-shadow:0 0 6px rgba(255,183,0,0.5)}
+.pc-tol-pointer.err{background:var(--red);box-shadow:0 0 6px rgba(255,59,59,0.5)}
+
+/* 知识库依据 */
+.kb-ref{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:16px 20px;font-size:12px;color:var(--tx2);line-height:1.7}
+.kb-ref-title{font-size:13px;color:var(--teal);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.kb-ref ul{padding-left:20px;margin:0}
+.kb-ref li{margin-bottom:4px}
+
+@media(max-width:760px){
+  .hdr{padding:16px 20px 12px}
+  .main{padding:16px 20px 30px}
+  .kb-banner{margin:12px 20px 0;font-size:11px}
+  .load-btn{padding:8px 12px;font-size:12px}
+  .diag-link{padding:7px 12px;font-size:12px}
+}
+  /* 故障注入（演示/测试用） */
+  .fault-alert{margin:0 0 20px;padding:14px 18px;border-radius:12px;background:rgba(255,59,59,0.1);border:1px solid rgba(255,59,59,0.4);color:#ffd0d0;font-size:13px;line-height:1.5;display:none;align-items:center;gap:10px}
+  .fault-alert.on{display:flex;animation:pulseRed 1.8s infinite}
+  @keyframes pulseRed{0%,100%{border-color:rgba(255,59,59,0.35)}50%{border-color:rgba(255,59,59,0.95)}}
+  .fault-alert .fa-icon{font-size:18px;color:var(--red)}
+  .fault-bar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;flex-wrap:wrap}
+  .fault-label{font-size:13px;color:var(--tx2);font-weight:500}
+  .fault-btn{padding:9px 16px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border:1px solid transparent}
+  .fault-btn.inject{background:rgba(255,107,53,0.15);border-color:var(--orange);color:var(--orange)}
+  .fault-btn.inject:hover{background:rgba(255,107,53,0.28);box-shadow:0 0 14px rgba(255,107,53,0.3)}
+  .fault-btn.resolve{background:rgba(0,214,143,0.15);border-color:var(--green);color:var(--green)}
+  .fault-btn.resolve:hover{background:rgba(0,214,143,0.28);box-shadow:0 0 14px rgba(0,214,143,0.3)}
+  .fault-desc{font-size:12px;color:var(--tx3);font-family:'SF Mono',monospace}
+  .pc-status.fail{background:rgba(255,59,59,0.12);color:var(--red);border:1px solid rgba(255,59,59,0.4)}
+  .pc-delta.fail{color:var(--red)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-row">
+    <span class="hdr-icon">⚓</span>
+    <div>
+      <div class="hdr-title">冷却系统监测模块</div>
+      <div class="hdr-sub">MAN B&amp;W 12K98ME-C7 · Hull 1957 AA2877 · 4 parameters × 6 loads</div>
+    </div>
+    <div class="hdr-badge">
+      <div class="hdr-dot"></div>
+      <span style="color:var(--tx);font-weight:500">基于 MAN 专属知识库</span>
+    </div>
+  </div>
+</div>
+
+<div class="kb-banner">
+  <span class="kb-banner-tag">数据源</span>
+  <span>本模块参数基准来源于 <b style="color:var(--teal)">MAN 12K98ME-C7 专属 4 库</b>（温度监测 / 负载指数 / 涡轮增压器 / 油耗监测，来自 7 个 docx 工厂测试报告），<b>不混入</b>通用船舶知识库（维护 / 查询 / 应急等）。本页面只负责实时监控，视觉智能体的扫描结果在 <a class="diag-link" style="padding:3px 10px;font-size:11px" href="cooling-diagnosis.html">🤖 视觉诊断</a> 页面查看。</span>
+</div>
+
+<div class="main">
+
+  <!-- 实时负载 + 跳转 -->
+  <div class="load-bar">
+    <span class="load-label">主机负载</span>
+    <div style="display:flex;align-items:baseline;gap:4px">
+      <span class="mono" id="loadVal" style="font-size:28px;font-weight:700;color:var(--teal);text-shadow:0 0 12px var(--teal-glow)">--</span>
+      <span style="font-size:14px;color:var(--tx2)">%</span>
+      <span id="loadTrend" style="font-size:16px;margin-left:6px;color:var(--tx3)">→</span>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="load-btn active" id="modeAuto" onclick="setMode('auto')">自动漂移</button>
+      <button class="load-btn" id="modeManual" onclick="setMode('manual')">手动</button>
+      <input type="range" id="loadSlider" min="25" max="110" value="85" step="0.1" oninput="manualLoad(this.value)" style="width:140px;accent-color:var(--teal);display:none">
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <a class="diag-link" href="cooling-diagnosis.html" title="DSR1 视觉智能体扫描结果（跳转至诊断页）">🤖 视觉诊断 →</a>
+      <div class="load-info">
+        <span class="live-dot"></span>
+        <span id="loadInfo">实时模拟 · 4参数 · MAN KB</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 故障注入告警条（异常时显示） -->
+  <div class="fault-alert" id="faultAlert">
+    <span class="fa-icon">⚠</span>
+    <span id="faultAlertText">异常注入中</span>
+  </div>
+
+  <!-- 异常注入（演示/测试用：注入后数据卡死在异常值，直到点击「已处理」） -->
+  <div class="fault-bar">
+    <span class="fault-label">异常模拟</span>
+    <button class="fault-btn inject" id="injectBtn" onclick="injectFault()">⚠ 注入异常</button>
+    <button class="fault-btn resolve" id="resolveBtn" onclick="resolveFault()" style="display:none">✓ 已处理</button>
+    <span class="fault-desc" id="faultDesc">点击「⚠ 注入异常」模拟一次故障，数据将卡死在异常值，直到点击「✓ 已处理」</span>
+  </div>
+
+  <!-- 4 参数卡片（纯监控：KB基准 + 实时传感器值 + 容差） -->
+  <div class="params-grid" id="paramsGrid"></div>
+
+  <!-- 知识库依据 -->
+  <div class="kb-ref">
+    <div class="kb-ref-title">📚 知识库依据（MAN 专属 4 库）</div>
+    <ul>
+      <li><b>温度监测</b>（12 段）：12K98ME-C7 两台主机温度测试数据 + 异常判定规则</li>
+      <li><b>负载指数</b>（13 段）：2009-05-19 工厂测试报告（AA2877/Hull 1957）</li>
+      <li><b>涡轮增压器</b>（2 段）：12K98ME-C7 增压器转速工况判断</li>
+      <li><b>油耗监测</b>（2 段）：12K98ME-C7 燃油消耗判定</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+// ===== MAN 12K98ME-C7 冷却系统 KB 基准（4 参数 × 6 档负载） =====
+const COOLING_BASELINE = {
+  "淡水进水温度":       {unit:"℃", symbol:"tcoolin",  tolerance:5, values:{25:17,   50:19,   75:22,   90:26,   100:32,  110:34}},
+  "缸套水出水温度":     {unit:"℃", symbol:"texvf",    tolerance:3, values:{25:86.3, 50:88.4, 75:89.9, 90:92.8, 100:95.2, 110:99.1}},
+  "冷却淡水出水温度":   {unit:"℃", symbol:"tcoolout", tolerance:2, values:{25:83.7, 50:79.6, 75:78.8, 90:78.4, 100:78.8, 110:78.5}},
+  "活塞冷却油出口温度": {unit:"℃", symbol:"tpco",     tolerance:2, values:{25:48.3, 50:54.1, 75:57.6, 90:58.8, 100:59.1, 110:59.8}}
+};
+const LOADS = [25, 50, 75, 90, 100, 110];
+
+// ===== 故障注入场景（演示/测试用：让模拟数据进入超容差/严重超差/传感器故障） =====
+const FAULT_SCENARIOS = {
+  normal:      {label:"正常", desc:"无故障注入，按 KB 基准正常模拟", offsets:{}, fail:[]},
+  cyl_high:    {label:"缸套水出水温度偏高", desc:"缸套水出水温度 +7℃（容差±3℃，严重超差）", offsets:{"缸套水出水温度":7}, fail:[]},
+  pco_high:    {label:"活塞冷却油出口温度偏高", desc:"活塞冷却油出口 +5℃（容差±2℃，严重超差）", offsets:{"活塞冷却油出口温度":5}, fail:[]},
+  coolin_high: {label:"淡水进水温度升高", desc:"淡水进水温度 +12℃（容差±5℃，严重超差）", offsets:{"淡水进水温度":12}, fail:[]},
+  coolout_high:{label:"冷却淡水出水温度偏高", desc:"冷却淡水出水温度 +5℃（容差±2℃，严重超差）", offsets:{"冷却淡水出水温度":5}, fail:[]},
+  sensor_fail: {label:"传感器故障（断线/冻结）", desc:"活塞冷却油读数冻结为 0℃（疑似断线/故障）", offsets:{}, fail:["活塞冷却油出口温度"]},
+  multi:       {label:"多参数综合异常", desc:"缸套水+7 / 活塞冷却油+5 / 淡水进水+12（多参数超差）", offsets:{"缸套水出水温度":7,"活塞冷却油出口温度":5,"淡水进水温度":12}, fail:[]},
+};
+// 可由「注入异常」按钮随机注入，或由 agent 通过 ?fault= 指定（headless 截图用）
+const INJECT_KEYS = ["cyl_high","pco_high","coolin_high","coolout_high","sensor_fail","multi"];
+let faultMode = 'normal';   // 当前异常场景 key（normal=无）
+let faultActive = false;    // 异常是否已注入（数据卡死标志）
+let frozenSensors = null;   // 卡死时的温度快照
+let frozenLoad = 85;        // 卡死时的负载快照
+
+let realLoad = 85, loadPhase = 0, prevLoad = 85, mode = 'auto';
+let sensorValues = {};
+
+// 初始化模式：优先级 window.__INIT_MODE__ > URL参数 > sessionStorage
+(function() {
+  // 最高优先级：agent HTTP 注入（headless 截图可靠方案）
+  let initMode = window.__INIT_MODE__;
+  let initLoad = window.__INIT_LOAD__;
+  // 其次 URL 参数
+  if (!initMode) {
+    const p = new URLSearchParams(window.location.search);
+    initMode = p.get('mode');
+    initLoad = parseFloat(p.get('load'));
+  }
+  // 其次 sessionStorage（同标签页返回时恢复）
+  if (!initMode) {
+    initMode = sessionStorage.getItem('coolingMode');
+    initLoad = parseFloat(sessionStorage.getItem('coolingLoad'));
+  }
+  if (initMode === 'manual') {
+    mode = 'manual';
+    if (!isNaN(initLoad) && initLoad >= 25 && initLoad <= 110) realLoad = initLoad;
+    document.getElementById('modeAuto').classList.remove('active');
+    document.getElementById('modeManual').classList.add('active');
+    document.getElementById('loadSlider').style.display = 'block';
+    document.getElementById('loadSlider').value = realLoad;
+  }
+  // 故障注入初始值：agent 通过 ?fault= 指定优先；否则从 sessionStorage 恢复未处理的卡死异常
+  const qp = new URLSearchParams(window.location.search);
+  let initFault = window.__INIT_FAULT__ || qp.get('fault');
+  // 注意：normal 是 FAULT_SCENARIOS 的合法 key，但不能触发注入（否则正常状态也会亮红条+卡死）
+  if (initFault && initFault !== 'normal' && FAULT_SCENARIOS[initFault]) {
+    injectFault(initFault);
+  } else {
+    const saved = sessionStorage.getItem('coolingFaultState');
+    if (saved) {
+      try {
+        const s = JSON.parse(saved);
+        if (s.faultActive && FAULT_SCENARIOS[s.faultMode] && s.frozenSensors) {
+          faultMode = s.faultMode;
+          faultActive = true;
+          frozenSensors = s.frozenSensors;
+          frozenLoad = s.frozenLoad;
+        }
+      } catch (e) {}
+    }
+  }
+})();
+
+// KB 基准插值（负载连续值 → 线性插值基准）
+function getBaselineAt(name, load) {
+  const v = COOLING_BASELINE[name].values;
+  if (load <= 25) return v[25];
+  if (load >= 110) return v[110];
+  for (let i = 0; i < LOADS.length - 1; i++) {
+    if (load >= LOADS[i] && load <= LOADS[i+1]) {
+      const t = (load - LOADS[i]) / (LOADS[i+1] - LOADS[i]);
+      return +(v[LOADS[i]] + t * (v[LOADS[i+1]] - v[LOADS[i]])).toFixed(2);
+    }
+  }
+  return v[100];
+}
+
+// 实时负载漂移（自动模式：65-98% sin 波动 + 噪声）
+function updateLoad() {
+  if (faultActive) return;  // 异常卡死期间，负载不再漂移
+  if (mode !== 'auto') return;
+  prevLoad = realLoad;
+  loadPhase += 0.015;
+  realLoad = 81 + Math.sin(loadPhase) * 16 + Math.sin(loadPhase * 2.3) * 4 + (Math.random() - 0.5) * 2;
+  realLoad = Math.max(25, Math.min(110, realLoad));
+}
+
+// 实时温度（插值基准 + 传感器噪声 + 工况漂移 + 故障注入偏移）
+function updateSensors() {
+  // 异常卡死：直接回放冻结快照，不再计算噪声/漂移
+  if (faultActive && frozenSensors) {
+    for (const name in COOLING_BASELINE) sensorValues[name] = frozenSensors[name];
+    return;
+  }
+  const sc = FAULT_SCENARIOS[faultMode] || FAULT_SCENARIOS.normal;
+  for (const name in COOLING_BASELINE) {
+    const base = getBaselineAt(name, realLoad);
+    // 传感器故障：读数冻结为 0℃（模拟断线/卡死）
+    if (sc.fail.includes(name)) {
+      sensorValues[name] = 0;
+      continue;
+    }
+    const noise = (Math.random() - 0.5) * 1.6;
+    const drift = Math.sin(loadPhase * 0.7 + name.length) * 0.5;
+    const off = sc.offsets[name] || 0;
+    sensorValues[name] = +(base + noise + drift + off).toFixed(2);
+  }
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('modeAuto').classList.toggle('active', m === 'auto');
+  document.getElementById('modeManual').classList.toggle('active', m === 'manual');
+  document.getElementById('loadSlider').style.display = m === 'manual' ? 'block' : 'none';
+  sessionStorage.setItem('coolingMode', m);
+  if (m === 'manual') { manualLoad(document.getElementById('loadSlider').value); }
+  else { sessionStorage.removeItem('coolingMode'); sessionStorage.removeItem('coolingLoad'); }
+}
+function manualLoad(v) {
+  if (faultActive) return;  // 卡死期间忽略手动负载调整
+  if (mode === 'manual') { prevLoad = realLoad; realLoad = +v; sessionStorage.setItem('coolingLoad', v); }
+}
+
+// 注入异常：随机选一个场景并卡死数据；specific 为 agent 指定的场景 key
+function injectFault(specific) {
+  let key = specific;
+  if (!key || !FAULT_SCENARIOS[key]) {
+    key = INJECT_KEYS[Math.floor(Math.random() * INJECT_KEYS.length)];
+  }
+  const sc = FAULT_SCENARIOS[key];
+  frozenLoad = realLoad;
+  frozenSensors = {};
+  for (const name in COOLING_BASELINE) {
+    if (sc.fail.includes(name)) frozenSensors[name] = 0;                       // 传感器故障：冻结为 0℃
+    else frozenSensors[name] = +(getBaselineAt(name, frozenLoad) + (sc.offsets[name] || 0)).toFixed(2);
+  }
+  faultMode = key;
+  faultActive = true;
+  try { sessionStorage.setItem('coolingFaultState', JSON.stringify({faultActive:true, faultMode:key, frozenSensors, frozenLoad})); } catch(e){}
+  applyFaultUI();
+}
+// 已处理：解除异常，恢复正常模拟
+function resolveFault() {
+  faultActive = false;
+  faultMode = 'normal';
+  frozenSensors = null;
+  try { sessionStorage.removeItem('coolingFaultState'); } catch(e){}
+  applyFaultUI();
+}
+// 同步按钮/告警条状态
+function applyFaultUI() {
+  const sc = FAULT_SCENARIOS[faultMode] || FAULT_SCENARIOS.normal;
+  const injectBtn = document.getElementById('injectBtn');
+  const resolveBtn = document.getElementById('resolveBtn');
+  const alert = document.getElementById('faultAlert');
+  const text = document.getElementById('faultAlertText');
+  const desc = document.getElementById('faultDesc');
+  if (faultActive) {
+    injectBtn.style.display = 'none';
+    resolveBtn.style.display = 'inline-block';
+    alert.classList.add('on');
+    text.textContent = '⚠ 异常已注入，数据卡死在异常值：' + sc.label + ' — ' + sc.desc;
+    desc.textContent = '异常持续中，点击「✓ 已处理」恢复正常监测';
+  } else {
+    injectBtn.style.display = 'inline-block';
+    resolveBtn.style.display = 'none';
+    alert.classList.remove('on');
+    desc.textContent = '点击「⚠ 注入异常」模拟一次故障，数据将卡死在异常值，直到点击「✓ 已处理」';
+  }
+}
+
+function updateLoadDisplay() {
+  document.getElementById('loadVal').textContent = realLoad.toFixed(1);
+  const trend = realLoad > prevLoad + 0.1 ? '↑' : realLoad < prevLoad - 0.1 ? '↓' : '→';
+  const tc = realLoad > prevLoad ? 'var(--orange)' : realLoad < prevLoad ? 'var(--cyan)' : 'var(--tx3)';
+  const te = document.getElementById('loadTrend');
+  te.textContent = trend; te.style.color = tc;
+  document.getElementById('loadInfo').textContent = mode === 'auto' ? '自动漂移 · 实时模拟 · MAN KB' : '手动 · 负载 ' + realLoad.toFixed(1) + '%';
+}
+
+// 参数卡片（纯监控：KB基准 + 实时值 + 容差，不含视觉读数）
+function renderParams() {
+  const grid = document.getElementById('paramsGrid');
+  grid.innerHTML = Object.entries(COOLING_BASELINE).map(([name, bl]) => {
+    const baseline = getBaselineAt(name, realLoad);
+    const low = +(baseline - bl.tolerance).toFixed(1);
+    const high = +(baseline + bl.tolerance).toFixed(1);
+    const liveVal = sensorValues[name];
+    const sc = FAULT_SCENARIOS[faultMode] || FAULT_SCENARIOS.normal;
+    let st = 'normal', ptrCls = 'normal';
+    const delta = liveVal - baseline;
+    if (Math.abs(delta) <= bl.tolerance) { st = 'normal'; ptrCls = 'normal'; }
+    else if (Math.abs(delta) <= bl.tolerance * 2) { st = 'warn'; ptrCls = 'warn'; }
+    else { st = 'err'; ptrCls = 'err'; }
+    // 传感器故障：标记为“故障”
+    if (sc.fail.includes(name)) { st = 'fail'; ptrCls = 'err'; }
+    const stText = {normal:'正常', warn:'超容差', err:'严重超差', fail:'故障'}[st];
+    const ptrLeft = Math.max(2, Math.min(98, ((liveVal - low) / (high - low)) * 100));
+    return `
+      <div class="pc">
+        <div class="pc-hdr">
+          <div><div class="pc-name">${name}</div><div class="pc-sym">${bl.symbol}</div></div>
+          <div class="pc-status ${st}">● ${stText}</div>
+        </div>
+        <div class="pc-baseline">
+          <div class="pc-baseline-label">📐 KB 基准（负载 ${realLoad.toFixed(1)}% 插值）</div>
+          <div class="pc-baseline-val">${baseline} <span style="font-size:12px;color:var(--tx2)">${bl.unit}</span></div>
+          <div class="pc-baseline-range">容差 ±${bl.tolerance} → 范围 [${low}, ${high}] ${bl.unit}</div>
+        </div>
+        <div class="pc-actual">
+          <div class="pc-actual-hdr">
+            <div class="pc-actual-label">📡 实时传感器值</div>
+            <div class="pc-actual-source">模拟 · 每秒更新</div>
+          </div>
+          <div class="pc-actual-val">${liveVal} <span style="font-size:12px;color:var(--tx2)">${bl.unit}</span></div>
+          <div class="pc-delta ${ptrCls}">${sc.fail.includes(name) ? '⚠ 传感器故障：读数冻结 0℃' : '偏差 ' + (delta>=0?'+':'') + delta.toFixed(2) + ' ' + bl.unit + ' (vs 基准)'}</div>
+        </div>
+        <div class="pc-tolerance">
+          <div class="pc-tol-label">容差区间 · 实时值位置</div>
+          <div class="pc-tol-bar">
+            <div class="pc-tol-base" style="left:0;right:0"></div>
+            <div class="pc-tol-pointer ${ptrCls}" style="left:${ptrLeft}%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx3);margin-top:4px;font-family:'SF Mono',monospace">
+            <span>${low}</span><span style="color:var(--teal)">${baseline}</span><span>${high}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ===== 实时模拟主循环 =====
+function tick() {
+  updateLoad();
+  updateSensors();
+  updateLoadDisplay();
+  renderParams();
+  // 把当前真实值 POST 给 agent（解决视觉模型读数误差问题）
+  try {
+    fetch('/ai/__state', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({load: +realLoad.toFixed(2), sensors: sensorValues, mode: mode, fault: faultMode, frozen: faultActive, ts: Date.now()}),
+      mode: 'cors',
+    }).catch(()=>{});
+  } catch(e) {}
+}
+
+// ===== INIT =====
+updateSensors();
+updateLoadDisplay();
+renderParams();
+applyFaultUI();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
