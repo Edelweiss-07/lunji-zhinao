@@ -4316,8 +4316,9 @@ window.addEventListener('load', () => {
       }
       if (!redirected && elapsed >= REDIRECT_AT) {
         redirected = true;
-        // 直接打开 Gradio（绕过 iframe 嵌套，渲染更稳定，避免 SSE 在 iframe 内被浏览器策略影响）
-        window.open('/demo/', '_blank');
+        // 打开 portal.html（含顶部导航栏 + 小鲨吉祥物 + 3D 鱼），内部 iframe 嵌 /demo/
+        // SSE 预读 bug 已修复，iframe 内 Gradio 长连接可正常工作
+        window.open('/static/portal.html', '_blank');
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         setTimeout(function () { resetOverlay(); }, 300);
         return;

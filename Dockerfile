@@ -8,11 +8,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-cjk \
     fonts-noto-cjk-extra \
     fontconfig \
+    tzdata \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -fv > /dev/null
 
 # 让 Python 日志立即 flush（不缓存），Render Logs 页面才能实时看到 traceback
 ENV PYTHONUNBUFFERED=1
+# 容器时区设中国（用户在中国，visualizer 用 datetime.now() 无时区，
+# 不设的话 Render(UTC) 上的时间戳会比用户本地慢 8 小时）
+ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 

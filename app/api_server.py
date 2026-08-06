@@ -360,9 +360,10 @@ async def _reverse_proxy(request: Request, upstream_base: str, path_override: st
     }
 
     if is_streaming:
-        # SSE 长连接：直接流式透传，靠 background task 在断开时清理
+        # SSE 长连接：流式透传 + 心跳保活，靠 background task 在断开时清理
+        # 心跳：每 30s 无数据就发一个 SSE comment 包，避免 Cloudflare 免费层 100s 超时掐断
         return StreamingResponse(
-            upstream_resp.aiter_raw(),
+            _sse_with_heartbeat(upstream_resp),
             status_code=upstream_resp.status_code,
             headers=response_headers,
             background=BackgroundTask(_close_stream, upstream_resp, client),
@@ -395,6 +396,49 @@ async def _close_stream(resp, client):
         await resp.aclose()
     finally:
         await client.aclose()
+
+
+async def _sse_with_heartbeat(resp):
+    """SSE 流式透传 + 心跳保活。
+
+    Cloudflare 免费层会在 100s 无数据传输时主动掐断长连接，
+    Gradio 6.x 检测到断开会弹 "Connection lost / Attempting reconnection..."。
+    这里每 30s 检测一次：若上游 30s 内没发数据，就主动发一个 SSE comment
+    包（`: heartbeat\\n\\n`，Gradio 客户端会忽略），让连接保持活跃。
+
+    实现要点：后台读协程持续从上游 aiter_raw() 读数据放入队列，主生成器只
+    对「队列等待」设 30s 超时——读操作本身永不被 cancel（cancel 会直接
+    断开 httpx 到上游的连接，导致后续数据丢失）。
+    """
+    import asyncio
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def _reader():
+        try:
+            async for chunk in resp.aiter_raw():
+                await queue.put(("data", chunk))
+        except StopAsyncIteration:
+            pass
+        except Exception:
+            pass
+        finally:
+            await queue.put(("done", None))
+
+    read_task = asyncio.ensure_future(_reader())
+    try:
+        while True:
+            try:
+                kind, payload = await asyncio.wait_for(queue.get(), timeout=30.0)
+            except asyncio.TimeoutError:
+                # 30s 内上游无新数据，发心跳保活，连接不中断
+                yield b": heartbeat\n\n"
+                continue
+            if kind == "done":
+                break
+            yield payload
+    finally:
+        if not read_task.done():
+            read_task.cancel()
 
 
 # （注：Gradio 6.x 实际用 HTTP POST /queue/join + GET /queue/data (SSE/EventSource)
