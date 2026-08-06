@@ -7,7 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     gettext-base \
-    && rm -rf /var/lib/apt/lists/*
+    fonts-noto-cjk \
+    fonts-noto-cjk-extra \
+    fontconfig \
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -fv > /dev/null
 
 # Playwright (chromium) 运行所需的系统库
 RUN apt-get update && apt-get install -y --no-install-recommends \
