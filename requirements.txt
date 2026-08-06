@@ -4,3 +4,4 @@ gradio
 openai
 plotly
 playwright
+httpx

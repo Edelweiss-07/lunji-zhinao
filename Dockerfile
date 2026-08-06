@@ -1,11 +1,10 @@
 FROM python:3.11-slim
 
 # ---------- 基础工具 + 中文字体 ----------
+# （不再装 nginx / gettext-base：反代由 FastAPI 自己用 httpx 做，少一个进程少一堆坑）
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx \
     curl \
     ca-certificates \
-    gettext-base \
     fonts-noto-cjk \
     fonts-noto-cjk-extra \
     fontconfig \
@@ -20,7 +19,6 @@ WORKDIR /app
 # ---------- 应用代码 ----------
 COPY requirements.txt ./
 COPY app/ ./
-COPY nginx.conf.template /etc/nginx/nginx.conf.template
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
@@ -32,8 +30,8 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 # 之前手动 apt-get 装的 libnss3 那批可能漏了 libgtk，导致 chromium 启动崩溃
 RUN python3 -m playwright install --with-deps chromium
 
-# HF 通过 $PORT 访问（默认 7860，HF 会自动覆盖该环境变量）
-EXPOSE 7860
-ENV PORT 7860
+# Render 会注入 PORT（默认 10000）。api_server 读 PORT 后 uvicorn 直接绑它。
+# 我们不再走 nginx，所以没有端口 redirect 问题，也不需要 envsubst。
+EXPOSE 10000
 
 CMD ["/start.sh"]

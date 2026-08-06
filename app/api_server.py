@@ -11,11 +11,12 @@ from pathlib import Path
 # Add local_agent to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import httpx
 import uuid
 from datetime import datetime
 
@@ -293,6 +294,84 @@ if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 
+# ============================================================
+# 反向代理：/demo/* -> Gradio 7861, /ai/* -> Agent 7864
+# 干掉 nginx，单进程 FastAPI 自己做反代（避免 nginx 配置/端口/daemon off 各种坑）
+# ============================================================
+_HOP_BY_HOP = {"host", "content-length", "connection", "transfer-encoding", "upgrade"}
+
+
+async def _reverse_proxy(request: Request, upstream_base: str):
+    """把请求流式转发到上游服务。"""
+    upstream_path = request.url.path
+    upstream_url = f"{upstream_base}{upstream_path}"
+    if request.url.query:
+        upstream_url += f"?{request.url.query}"
+
+    body = await request.body()
+    headers = {k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP}
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=5.0)) as client:
+            upstream_resp = await client.request(
+                method=request.method,
+                url=upstream_url,
+                headers=headers,
+                content=body,
+            )
+    except httpx.ConnectError:
+        return JSONResponse(
+            {"error": "upstream not ready", "upstream": upstream_base, "path": upstream_path},
+            status_code=503,
+        )
+    except Exception as e:
+        return JSONResponse({"error": str(e), "upstream": upstream_base}, status_code=502)
+
+    # 过滤 hop-by-hop headers 再回传
+    response_headers = {
+        k: v for k, v in upstream_resp.headers.items()
+        if k.lower() not in _HOP_BY_HOP | {"content-length"}
+    }
+    return Response(
+        content=upstream_resp.content,
+        status_code=upstream_resp.status_code,
+        headers=response_headers,
+    )
+
+
+@app.api_route("/demo/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def proxy_demo(full_path: str, request: Request):
+    """Reverse proxy /demo/* -> Gradio 7861（保留 /demo 前缀，Gradio root_path=/demo）."""
+    return await _reverse_proxy(request, "http://127.0.0.1:7861")
+
+
+@app.get("/demo")
+async def redirect_demo():
+    """Redirect bare /demo to /demo/."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/demo/", status_code=301)
+
+
+@app.api_route("/ai/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def proxy_ai(full_path: str, request: Request):
+    """Reverse proxy /ai/* -> Agent 7864（剥 /ai 前缀，因为 7864 内部路由不带 /ai）."""
+    # 剥掉 /ai 前缀
+    raw_path = request.url.path  # e.g. /ai/health
+    new_path = raw_path[len("/ai"):] or "/"
+    # 直接重写 request scope 的 path 再转发（更稳）
+    request.scope["path"] = new_path
+    return await _reverse_proxy(request, "http://127.0.0.1:7864")
+
+
+@app.get("/ai")
+async def serve_ai_index():
+    """Serve cooling-diagnosis.html for bare /ai."""
+    diag = static_dir / "cooling-diagnosis.html"
+    if diag.exists():
+        return FileResponse(str(diag), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    return JSONResponse({"error": "cooling-diagnosis.html not found"}, status_code=404)
+
+
 @app.get("/")
 async def serve_gateway():
     """Serve the marketing landing page (with 开始演示/历史数据 buttons)."""
@@ -325,11 +404,13 @@ async def serve_history():
 
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "7862"))
     print("=" * 60)
-    print("Marine Engine AI — FastAPI Backend")
-    print(f"  API: http://localhost:7860")
-    print(f"  Gateway: http://localhost:7860/")
-    print(f"  Dashboard: http://localhost:7860/dashboard")
-    print(f"  Docs: http://localhost:7860/docs")
+    print(f"Marine Engine AI — FastAPI Backend (with reverse proxy)")
+    print(f"  Listening: 0.0.0.0:{port}")
+    print(f"  Gateway:   /              (落地页+静态)")
+    print(f"  Demo:      /demo/*        -> Gradio :7861")
+    print(f"  AI:        /ai/*          -> Agent  :7864")
+    print(f"  Docs:      /docs")
     print("=" * 60)
-    uvicorn.run(app, host="0.0.0.0", port=7862)
+    uvicorn.run(app, host="0.0.0.0", port=port)
