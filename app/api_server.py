@@ -11,13 +11,13 @@ from pathlib import Path
 # Add local_agent to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fastapi import FastAPI, Query, HTTPException, Request, WebSocket
+from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.background import BackgroundTask
 import uvicorn
 import httpx
-import websockets
 import uuid
 from datetime import datetime
 
@@ -303,8 +303,10 @@ _HOP_BY_HOP = {"host", "content-length", "connection", "transfer-encoding", "upg
 
 
 async def _reverse_proxy(request: Request, upstream_base: str, path_override: str = None):
-    """把请求流式转发到上游服务。
-    path_override: 若指定,用它替换原始路径(用于剥前缀场景)
+    """把请求转发到上游服务。
+    对 SSE/event-stream 响应使用流式输出（避免 httpx 一次性读到 body 完才返回），
+    其他响应一次性读完返回（避免 HTTP/1.0 + stream 模式的兼容问题）。
+    path_override: 若指定，用它替换原始路径（用于剥前缀场景）
     """
     upstream_path = path_override if path_override is not None else request.url.path
     upstream_url = f"{upstream_base}{upstream_path}"
@@ -314,9 +316,11 @@ async def _reverse_proxy(request: Request, upstream_base: str, path_override: st
     body = await request.body()
     headers = {k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP}
 
+    # 长 timeout：read 24h，connect 5s。SSE 会一直挂着
+    timeout = httpx.Timeout(86400.0, connect=5.0)
+
     try:
-        # Gradio SSE 是长连接，不发数据会一直挂着；read timeout 设 24h 避免被反代切断
-        async with httpx.AsyncClient(timeout=httpx.Timeout(86400.0, connect=5.0)) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             upstream_resp = await client.request(
                 method=request.method,
                 url=upstream_url,
@@ -336,6 +340,39 @@ async def _reverse_proxy(request: Request, upstream_base: str, path_override: st
         k: v for k, v in upstream_resp.headers.items()
         if k.lower() not in _HOP_BY_HOP | {"content-length"}
     }
+
+    content_type = upstream_resp.headers.get("content-type", "").lower()
+    # SSE/streaming 响应：用流式返回，否则一次性 Response
+    is_streaming = (
+        "event-stream" in content_type
+        or upstream_resp.headers.get("transfer-encoding", "").lower() == "chunked"
+        and "json" not in content_type  # chunked 但 content-type 是 json 一般是一次性
+        and not upstream_resp.headers.get("content-length")
+    )
+
+    if is_streaming:
+        # 重发一个 stream 模式的请求用于流式读取
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client2:
+                req = client2.build_request(
+                    method=request.method,
+                    url=upstream_url,
+                    headers=headers,
+                    content=body,
+                )
+                stream_resp = await client2.send(req, stream=True)
+        except Exception as e:
+            return JSONResponse({"error": str(e), "upstream": upstream_base}, status_code=502)
+        return StreamingResponse(
+            stream_resp.aiter_raw(),
+            status_code=stream_resp.status_code,
+            headers={
+                k: v for k, v in stream_resp.headers.items()
+                if k.lower() not in _HOP_BY_HOP | {"content-length"}
+            },
+            background=BackgroundTask(stream_resp.aclose),
+        )
+
     return Response(
         content=upstream_resp.content,
         status_code=upstream_resp.status_code,
@@ -343,83 +380,15 @@ async def _reverse_proxy(request: Request, upstream_base: str, path_override: st
     )
 
 
-# ============================================================
-# WebSocket 反代（Gradio 用 WS 通信，HTTP 反代拿不掉 Connection/Upgrade）
-# 在 ASGI middleware 层拦截 WS 握手，做双向转发
-# ============================================================
-@app.websocket("/demo/{full_path:path}")
-async def proxy_demo_ws(websocket: WebSocket, full_path: str):
-    """WS 反代 /demo/* -> Gradio 7861（剥 /demo 前缀，因 Gradio WS 路径在 / 下）."""
-    await _ws_proxy(websocket, "ws://127.0.0.1:7861/" + full_path)
-
-
-@app.websocket("/ai/{full_path:path}")
-async def proxy_ai_ws(websocket: WebSocket, full_path: str):
-    """WS 反代 /ai/* -> Agent 7864（剥 /ai 前缀）."""
-    await _ws_proxy(websocket, "ws://127.0.0.1:7864/" + full_path)
-
-
-async def _ws_proxy(websocket: WebSocket, upstream_url: str):
-    """用 starlette WebSocket 接客户端，websockets 库连上游，双向转发."""
-    await websocket.accept()
-    # 透传 subprotocol（Gradio 用 "gradio-protocol"）
-    subprotocols = websocket.headers.get("sec-websocket-protocol")
-    subprotocol_list = [s.strip() for s in subprotocols.split(",")] if subprotocols else None
-    selected_subprotocol = subprotocol_list[0] if subprotocol_list else None
-
-    try:
-        async with websockets.connect(
-            upstream_url,
-            subprotocols=subprotocol_list,
-            ping_interval=None,  # 关闭 ping（防止长连接被误判）
-        ) as upstream:
-            # 告知客户端选了哪个 subprotocol
-            if selected_subprotocol and upstream.subprotocol != selected_subprotocol:
-                pass  # 实际握手已经在 connect 里完成，无需手动通知
-
-            async def client_to_upstream():
-                try:
-                    while True:
-                        msg = await websocket.receive()
-                        if msg["type"] == "websocket.disconnect":
-                            break
-                        if msg.get("text") is not None:
-                            await upstream.send(msg["text"])
-                        elif msg.get("bytes") is not None:
-                            await upstream.send(msg["bytes"])
-                except Exception:
-                    pass
-
-            async def upstream_to_client():
-                try:
-                    async for msg in upstream:
-                        if isinstance(msg, str):
-                            await websocket.send_text(msg)
-                        else:
-                            await websocket.send_bytes(msg)
-                except Exception:
-                    pass
-
-            # 任一方向断开就结束
-            done, pending = await asyncio.wait(
-                [asyncio.create_task(client_to_upstream()),
-                 asyncio.create_task(upstream_to_client())],
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            for t in pending:
-                t.cancel()
-    except Exception as e:
-        # WS 已 accept，错误就只能关闭
-        try:
-            await websocket.close(code=1011, reason=str(e)[:100])
-        except Exception:
-            pass
+# （注：Gradio 6.x 实际用 HTTP POST /queue/join + GET /queue/data (SSE/EventSource)
+# 通信，不是 WebSocket。之前加的 WS 反代路由已删除——直接走 HTTP 反代即可。）
 
 
 @app.api_route("/demo/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def proxy_demo(full_path: str, request: Request):
-    """Reverse proxy /demo/* -> Gradio 7861（保留 /demo 前缀，Gradio root_path=/demo）."""
-    return await _reverse_proxy(request, "http://127.0.0.1:7861")
+    """Reverse proxy /demo/* -> Gradio 7861（剥 /demo 前缀，因 Gradio 6.x 不设 root_path）."""
+    new_path = "/" + full_path if full_path else "/"
+    return await _reverse_proxy(request, "http://127.0.0.1:7861", path_override=new_path)
 
 
 @app.get("/demo")

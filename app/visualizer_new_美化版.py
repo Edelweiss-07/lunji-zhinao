@@ -5489,7 +5489,7 @@ if __name__ == "__main__":
     demo.queue(default_concurrency_limit=3)
     demo.launch(
         server_name="0.0.0.0", server_port=7861, share=False, inbrowser=False,
-        root_path="/demo",  # 经 nginx 反代到 /demo 前缀
+        # 不设 root_path，统一由反代在 /demo/ 路径下提供访问，剥前缀转发到 7861/
         show_error=True,
         css=DASHBOARD_CSS,
         js=NAV_BRIDGE_JS,
