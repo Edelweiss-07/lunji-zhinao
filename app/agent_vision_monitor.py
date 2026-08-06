@@ -734,10 +734,18 @@ async def monitor_loop():
         try:
             log.info("--- 开始视觉检测 ---")
             # 1. 截图 + DSR1 工况评估（读DOM作fallback）
-            load, sensors, assessment, screenshot, screenshot_b64, method = await capture_panel()
-            log.info(f"✓ {assessment.get('system','?')} 负载{load}%：{assessment.get('overall_status','?')}，{len(sensors)}参数，{len(assessment.get('concerns',[]))}关注点")
-            log.info(f"✓ 评估：{assessment.get('assessment','')[:80]}")
-            log.info(f"✓ 截图: {screenshot}")
+            try:
+                load, sensors, assessment, screenshot, screenshot_b64, method = await capture_panel()
+                log.info(f"✓ {assessment.get('system','?')} 负载{load}%：{assessment.get('overall_status','?')}，{len(sensors)}参数，{len(assessment.get('concerns',[]))}关注点")
+                log.info(f"✓ 评估：{assessment.get('assessment','')[:80]}")
+                log.info(f"✓ 截图: {screenshot}")
+            except Exception as cap_err:
+                # 把 capture_panel 错误直接暴露到前端，避免用户干等不知道出了啥问题
+                log.error(f"capture_panel 崩溃: {cap_err}")
+                import traceback as _tb
+                _tb.print_exc()
+                load, sensors, assessment = None, {}, {"system": "冷却系统", "overall_status": "等待", "assessment": f"capture_panel 异常: {cap_err}", "concerns": []}
+                screenshot, screenshot_b64, method = None, None, "error"
 
             # 2. KB 对比（客观校验视觉评估）
             anomalies = check_against_kb(load, sensors)
