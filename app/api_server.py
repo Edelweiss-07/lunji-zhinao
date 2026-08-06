@@ -312,7 +312,8 @@ async def _reverse_proxy(request: Request, upstream_base: str):
     headers = {k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP}
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=5.0)) as client:
+        # Gradio SSE 是长连接，不发数据会一直挂着；read timeout 设 24h 避免被反代切断
+        async with httpx.AsyncClient(timeout=httpx.Timeout(86400.0, connect=5.0)) as client:
             upstream_resp = await client.request(
                 method=request.method,
                 url=upstream_url,
