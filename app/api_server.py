@@ -11,12 +11,13 @@ from pathlib import Path
 # Add local_agent to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fastapi import FastAPI, Query, HTTPException, Request
+from fastapi import FastAPI, Query, HTTPException, Request, WebSocket
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import httpx
+import websockets
 import uuid
 from datetime import datetime
 
@@ -340,6 +341,79 @@ async def _reverse_proxy(request: Request, upstream_base: str, path_override: st
         status_code=upstream_resp.status_code,
         headers=response_headers,
     )
+
+
+# ============================================================
+# WebSocket 反代（Gradio 用 WS 通信，HTTP 反代拿不掉 Connection/Upgrade）
+# 在 ASGI middleware 层拦截 WS 握手，做双向转发
+# ============================================================
+@app.websocket("/demo/{full_path:path}")
+async def proxy_demo_ws(websocket: WebSocket, full_path: str):
+    """WS 反代 /demo/* -> Gradio 7861（保留 /demo 前缀）."""
+    await _ws_proxy(websocket, "ws://127.0.0.1:7861/demo/" + full_path)
+
+
+@app.websocket("/ai/{full_path:path}")
+async def proxy_ai_ws(websocket: WebSocket, full_path: str):
+    """WS 反代 /ai/* -> Agent 7864（剥 /ai 前缀）."""
+    await _ws_proxy(websocket, "ws://127.0.0.1:7864/" + full_path)
+
+
+async def _ws_proxy(websocket: WebSocket, upstream_url: str):
+    """用 starlette WebSocket 接客户端，websockets 库连上游，双向转发."""
+    await websocket.accept()
+    # 透传 subprotocol（Gradio 用 "gradio-protocol"）
+    subprotocols = websocket.headers.get("sec-websocket-protocol")
+    subprotocol_list = [s.strip() for s in subprotocols.split(",")] if subprotocols else None
+    selected_subprotocol = subprotocol_list[0] if subprotocol_list else None
+
+    try:
+        async with websockets.connect(
+            upstream_url,
+            subprotocols=subprotocol_list,
+            ping_interval=None,  # 关闭 ping（防止长连接被误判）
+        ) as upstream:
+            # 告知客户端选了哪个 subprotocol
+            if selected_subprotocol and upstream.subprotocol != selected_subprotocol:
+                pass  # 实际握手已经在 connect 里完成，无需手动通知
+
+            async def client_to_upstream():
+                try:
+                    while True:
+                        msg = await websocket.receive()
+                        if msg["type"] == "websocket.disconnect":
+                            break
+                        if msg.get("text") is not None:
+                            await upstream.send(msg["text"])
+                        elif msg.get("bytes") is not None:
+                            await upstream.send(msg["bytes"])
+                except Exception:
+                    pass
+
+            async def upstream_to_client():
+                try:
+                    async for msg in upstream:
+                        if isinstance(msg, str):
+                            await websocket.send_text(msg)
+                        else:
+                            await websocket.send_bytes(msg)
+                except Exception:
+                    pass
+
+            # 任一方向断开就结束
+            done, pending = await asyncio.wait(
+                [asyncio.create_task(client_to_upstream()),
+                 asyncio.create_task(upstream_to_client())],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for t in pending:
+                t.cancel()
+    except Exception as e:
+        # WS 已 accept，错误就只能关闭
+        try:
+            await websocket.close(code=1011, reason=str(e)[:100])
+        except Exception:
+            pass
 
 
 @app.api_route("/demo/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
