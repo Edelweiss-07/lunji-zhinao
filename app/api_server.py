@@ -349,8 +349,8 @@ async def _reverse_proxy(request: Request, upstream_base: str, path_override: st
 # ============================================================
 @app.websocket("/demo/{full_path:path}")
 async def proxy_demo_ws(websocket: WebSocket, full_path: str):
-    """WS 反代 /demo/* -> Gradio 7861（保留 /demo 前缀）."""
-    await _ws_proxy(websocket, "ws://127.0.0.1:7861/demo/" + full_path)
+    """WS 反代 /demo/* -> Gradio 7861（剥 /demo 前缀，因 Gradio WS 路径在 / 下）."""
+    await _ws_proxy(websocket, "ws://127.0.0.1:7861/" + full_path)
 
 
 @app.websocket("/ai/{full_path:path}")
