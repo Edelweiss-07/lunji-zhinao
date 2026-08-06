@@ -4316,7 +4316,8 @@ window.addEventListener('load', () => {
       }
       if (!redirected && elapsed >= REDIRECT_AT) {
         redirected = true;
-        window.open('/static/portal.html', '_blank');
+        // 直接打开 Gradio（绕过 iframe 嵌套，渲染更稳定，避免 SSE 在 iframe 内被浏览器策略影响）
+        window.open('/demo/', '_blank');
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         setTimeout(function () { resetOverlay(); }, 300);
         return;
