@@ -304,8 +304,13 @@ _HOP_BY_HOP = {"host", "content-length", "connection", "transfer-encoding", "upg
 
 async def _reverse_proxy(request: Request, upstream_base: str, path_override: str = None):
     """把请求转发到上游服务。
-    对 SSE/event-stream 响应使用流式输出（避免 httpx 一次性读到 body 完才返回），
-    其他响应一次性读完返回（避免 HTTP/1.0 + stream 模式的兼容问题）。
+
+    关键设计：用 stream 模式发起请求，从响应头读取 Content-Type 判断是否是 SSE。
+    不能先用 client.request() 预读——SSE 永远不结束，那一行会无限期挂着。
+
+    - SSE/event-stream 响应：用 StreamingResponse 流式透传（24h 长 timeout）
+    - 其他响应：直接 aiter_raw 读完一次性返回（避免 HTTP/1.0 + stream 兼容问题）
+
     path_override: 若指定，用它替换原始路径（用于剥前缀场景）
     """
     upstream_path = path_override if path_override is not None else request.url.path
@@ -319,65 +324,77 @@ async def _reverse_proxy(request: Request, upstream_base: str, path_override: st
     # 长 timeout：read 24h，connect 5s。SSE 会一直挂着
     timeout = httpx.Timeout(86400.0, connect=5.0)
 
+    # 一次性建立 stream 请求，从响应头判断 content-type
+    client = httpx.AsyncClient(timeout=timeout)
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            upstream_resp = await client.request(
-                method=request.method,
-                url=upstream_url,
-                headers=headers,
-                content=body,
-            )
+        req = client.build_request(
+            method=request.method,
+            url=upstream_url,
+            headers=headers,
+            content=body,
+        )
+        upstream_resp = await client.send(req, stream=True)
     except httpx.ConnectError:
+        await client.aclose()
         return JSONResponse(
             {"error": "upstream not ready", "upstream": upstream_base, "path": upstream_path},
             status_code=503,
         )
     except Exception as e:
+        await client.aclose()
         return JSONResponse({"error": str(e), "upstream": upstream_base}, status_code=502)
 
-    # 过滤 hop-by-hop headers 再回传
+    content_type = upstream_resp.headers.get("content-type", "").lower()
+    is_streaming = (
+        "event-stream" in content_type
+        or (
+            upstream_resp.headers.get("transfer-encoding", "").lower() == "chunked"
+            and "json" not in content_type
+            and not upstream_resp.headers.get("content-length")
+        )
+    )
+
     response_headers = {
         k: v for k, v in upstream_resp.headers.items()
         if k.lower() not in _HOP_BY_HOP | {"content-length"}
     }
 
-    content_type = upstream_resp.headers.get("content-type", "").lower()
-    # SSE/streaming 响应：用流式返回，否则一次性 Response
-    is_streaming = (
-        "event-stream" in content_type
-        or upstream_resp.headers.get("transfer-encoding", "").lower() == "chunked"
-        and "json" not in content_type  # chunked 但 content-type 是 json 一般是一次性
-        and not upstream_resp.headers.get("content-length")
-    )
-
     if is_streaming:
-        # 重发一个 stream 模式的请求用于流式读取
-        try:
-            async with httpx.AsyncClient(timeout=timeout) as client2:
-                req = client2.build_request(
-                    method=request.method,
-                    url=upstream_url,
-                    headers=headers,
-                    content=body,
-                )
-                stream_resp = await client2.send(req, stream=True)
-        except Exception as e:
-            return JSONResponse({"error": str(e), "upstream": upstream_base}, status_code=502)
+        # SSE 长连接：直接流式透传，靠 background task 在断开时清理
         return StreamingResponse(
-            stream_resp.aiter_raw(),
-            status_code=stream_resp.status_code,
-            headers={
-                k: v for k, v in stream_resp.headers.items()
-                if k.lower() not in _HOP_BY_HOP | {"content-length"}
-            },
-            background=BackgroundTask(stream_resp.aclose),
+            upstream_resp.aiter_raw(),
+            status_code=upstream_resp.status_code,
+            headers=response_headers,
+            background=BackgroundTask(_close_stream, upstream_resp, client),
         )
 
-    return Response(
-        content=upstream_resp.content,
+    # 非 SSE：读完一次性返回，但要保留 client 直到读完才能正确 aclose
+    async def _collect_and_close():
+        try:
+            await upstream_resp.aclose()
+        finally:
+            await client.aclose()
+
+    return StreamingResponse(
+        _collect_body(upstream_resp),
         status_code=upstream_resp.status_code,
         headers=response_headers,
+        background=BackgroundTask(_collect_and_close),
     )
+
+
+async def _collect_body(resp):
+    """一次性读完整 body 给非 SSE 响应。"""
+    async for chunk in resp.aiter_raw():
+        yield chunk
+
+
+async def _close_stream(resp, client):
+    """SSE 断开时清理 httpx 资源。"""
+    try:
+        await resp.aclose()
+    finally:
+        await client.aclose()
 
 
 # （注：Gradio 6.x 实际用 HTTP POST /queue/join + GET /queue/data (SSE/EventSource)
