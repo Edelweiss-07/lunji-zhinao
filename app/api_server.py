@@ -301,9 +301,11 @@ if static_dir.exists():
 _HOP_BY_HOP = {"host", "content-length", "connection", "transfer-encoding", "upgrade"}
 
 
-async def _reverse_proxy(request: Request, upstream_base: str):
-    """把请求流式转发到上游服务。"""
-    upstream_path = request.url.path
+async def _reverse_proxy(request: Request, upstream_base: str, path_override: str = None):
+    """把请求流式转发到上游服务。
+    path_override: 若指定,用它替换原始路径(用于剥前缀场景)
+    """
+    upstream_path = path_override if path_override is not None else request.url.path
     upstream_url = f"{upstream_base}{upstream_path}"
     if request.url.query:
         upstream_url += f"?{request.url.query}"
@@ -356,12 +358,9 @@ async def redirect_demo():
 @app.api_route("/ai/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def proxy_ai(full_path: str, request: Request):
     """Reverse proxy /ai/* -> Agent 7864（剥 /ai 前缀，因为 7864 内部路由不带 /ai）."""
-    # 剥掉 /ai 前缀
-    raw_path = request.url.path  # e.g. /ai/health
-    new_path = raw_path[len("/ai"):] or "/"
-    # 直接重写 request scope 的 path 再转发（更稳）
-    request.scope["path"] = new_path
-    return await _reverse_proxy(request, "http://127.0.0.1:7864")
+    # 剥掉 /ai 前缀：/ai/health -> /health
+    new_path = "/" + full_path if full_path else "/"
+    return await _reverse_proxy(request, "http://127.0.0.1:7864", path_override=new_path)
 
 
 @app.get("/ai")
