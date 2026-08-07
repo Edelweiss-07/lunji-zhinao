@@ -4340,7 +4340,7 @@ window.addEventListener('load', () => {
     var host = p.get('host');
     if (map[port]) return map[port].replace(/\/+$/, '');
     if (host) return host.replace(/\/+$/, '') + ':' + port;
-    return window.location.origin;
+    return 'http://127.0.0.1:' + port;
   }
   // 历史数据按钮 → 7862 的 /history 页面
   (function () {
