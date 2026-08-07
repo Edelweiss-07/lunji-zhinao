@@ -1,0 +1,4950 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>轮机智脑 | 远洋船舶轮机智能运维中枢</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800;900&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* 隐藏默认光标 */
+body {
+  cursor: none;
+}
+
+body a,
+body button,
+body .btn,
+body .feature-card,
+body .stat-item,
+body .scenario-card,
+body [role="button"] {
+  cursor: none;
+}
+
+/* 自定义光标 - 3D水泡泡主题版 */
+.cursor-bubble {
+  position: fixed;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(
+    100% 100% at 30% 30%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(170, 230, 255, 0.8) 30%,
+    rgba(22, 93, 255, 0.4) 70%,
+    rgba(125, 227, 214, 0.3) 100%
+  );
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 
+    inset 0 6px 16px rgba(255, 255, 255, 0.9),
+    inset 0 -6px 12px rgba(22, 93, 255, 0.25),
+    0 6px 20px rgba(22, 93, 255, 0.3),
+    0 0 36px rgba(125, 227, 214, 0.4),
+    0 0 60px rgba(22, 93, 255, 0.15);
+  backdrop-filter: blur(6px);
+  will-change: transform, width, height, border-radius;
+  transform-origin: center center;
+  transition: 
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+    width 0.2s ease,
+    height 0.2s ease,
+    border-radius 0.2s ease;
+}
+
+/* 海洋气泡特效容器 */
+#bubbles-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10; /* 位于背景之上，内容之下 */
+  overflow: hidden;
+}
+
+/* 单个气泡样式 - 和光标同款视觉 */
+.ocean-bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(
+    100% 100% at 30% 30%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(170, 230, 255, 0.8) 30%,
+    rgba(22, 93, 255, 0.4) 70%,
+    rgba(125, 227, 214, 0.3) 100%
+  );
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 
+    inset 0 6px 16px rgba(255, 255, 255, 0.9),
+    inset 0 -6px 12px rgba(22, 93, 255, 0.25),
+    0 6px 20px rgba(22, 93, 255, 0.3),
+    0 0 36px rgba(125, 227, 214, 0.4),
+    0 0 60px rgba(22, 93, 255, 0.15);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* 泡泡高光效果 */
+.cursor-bubble::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  width: 12px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  filter: blur(1px);
+}
+
+.cursor-bubble::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  width: 6px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  filter: blur(0.5px);
+}
+
+/* 悬停交互元素时的泡泡形变 */
+.cursor-bubble.hover {
+  transform: scale(1.6);
+  background: radial-gradient(
+    100% 100% at 30% 30%,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 210, 120, 0.7) 30%,
+    rgba(255, 107, 0, 0.4) 70%,
+    rgba(255, 170, 80, 0.3) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    inset 0 6px 16px rgba(255, 255, 255, 0.95),
+    inset 0 -6px 12px rgba(255, 107, 0, 0.25),
+    0 8px 24px rgba(255, 107, 0, 0.4),
+    0 0 40px rgba(255, 170, 80, 0.5),
+    0 0 70px rgba(255, 107, 0, 0.2);
+}
+
+/* 点击时的水波纹效果 */
+.cursor-ripple {
+  position: fixed;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(22, 93, 255, 0.4) 0%, transparent 70%);
+  border: 2px solid rgba(22, 93, 255, 0.5);
+  pointer-events: none;
+  z-index: 9998;
+  animation: rippleExpand 0.6s ease-out forwards;
+}
+
+@keyframes rippleExpand {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4.5);
+    opacity: 0;
+  }
+}
+
+/* 光标拖尾小气泡 */
+.cursor-trail {
+  position: fixed;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(
+    100% 100% at 30% 30%,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(125, 227, 214, 0.6) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  z-index: 9997;
+  box-shadow: 
+    inset 0 3px 6px rgba(255, 255, 255, 0.8),
+    0 3px 8px rgba(125, 227, 214, 0.4);
+  will-change: transform, opacity;
+  animation: trailFade 0.8s ease-out forwards;
+}
+
+@keyframes trailFade {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+
+:root {
+  --bg-deep:       #F8FAFF;
+  --bg-surface:    #FFFFFF;
+  --bg-card:       rgba(255, 255, 255, 0.85);
+  --bg-card-solid: rgba(255, 255, 255, 0.95);
+  --border-subtle: rgba(22, 93, 255, 0.1);
+  --border-card:   rgba(22, 93, 255, 0.15);
+  --text-primary:  #0F172A;
+  --text-secondary:#334155;
+  --text-muted:    #64748B;
+  --accent-cyan:   #165DFF;
+  --accent-cyan-glow: rgba(22, 93, 255, 0.3);
+  --accent-cyan-dim:  rgba(22, 93, 255, 0.05);
+  --accent-orange: #FF6B00;
+  --accent-orange-glow: rgba(255, 107, 0, 0.3);
+  --accent-orange-dim:  rgba(255, 107, 0, 0.05);
+  --accent-purple: #7C3AED;
+  --accent-green:  #10B981;
+  --font-sans: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Orbitron', 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+  --space-section: 120px;
+  --radius-sm:   8px;
+  --radius-md:   14px;
+  --radius-lg:   22px;
+  --radius-xl:   32px;
+  --radius-pill: 100px;
+  --glow-cyan:   0 0 20px rgba(22, 93, 255, 0.25), 0 0 60px rgba(22, 93, 255, 0.08);
+  --glow-orange: 0 0 20px rgba(255, 107, 0, 0.25), 0 0 60px rgba(255, 107, 0, 0.08);
+  --glow-green:  0 0 20px rgba(16, 185, 129, 0.25), 0 0 60px rgba(16, 185, 129, 0.08);
+  --card-shadow: 0 2px 24px rgba(0,0,0,0.08);
+  --max-width:   1240px;
+  --nav-height:  68px;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  background: transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 25%, #FFFFFF 50%, #F0FDF4 75%, #EFF6FF 100%);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ====== 动态背景视频 ====== */
+.bg-video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -2;
+  opacity: 0.25;
+  filter: brightness(1.3) saturate(1.2) contrast(1.1);
+}
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+
+
+/* ====== Ambient base gradient + noise ====== */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 0%, rgba(22, 93, 255, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 10% 100%, rgba(255, 107, 0, 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 50% at 50% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 35% 45% at 25% 30%, rgba(16, 185, 129, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 30% 35% at 75% 60%, rgba(236, 72, 153, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 25% 30% at 90% 20%, rgba(245, 158, 11, 0.05) 0%, transparent 45%),
+    linear-gradient(180deg, rgba(248, 250, 255, 0.8) 0%, rgba(255, 255, 255, 0.9) 100%);
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.15;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#particle-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ====== Top Nav — glassmorphism ====== */
+.top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: var(--nav-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-3xl);
+  transition: background 0.35s ease, backdrop-filter 0.35s ease, box-shadow 0.35s ease;
+  background: transparent;
+  overflow: hidden;
+}
+
+/* 海水流动背景 */
+.top-nav::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300%;
+  height: 100%;
+  background: 
+    linear-gradient(90deg, 
+      rgba(22, 93, 255, 0.03) 0%, 
+      rgba(14, 165, 233, 0.05) 25%, 
+      rgba(22, 93, 255, 0.03) 50%, 
+      rgba(14, 165, 233, 0.05) 75%, 
+      rgba(22, 93, 255, 0.03) 100%
+    ),
+    radial-gradient(circle at 20% 50%, rgba(14, 165, 233, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(22, 93, 255, 0.04) 0%, transparent 50%);
+  animation: seaFlow 15s linear infinite;
+  z-index: -1;
+}
+
+/* 海水流动动画 */
+@keyframes seaFlow {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-66.666%); }
+}
+
+.top-nav.scrolled {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: 0 1px 0 rgba(22, 93, 255, 0.08), 0 10px 36px rgba(22, 93, 255, 0.08);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.1);
+}
+
+/* 滚动时调整海水背景的透明度 */
+.top-nav.scrolled::before {
+  opacity: 0.6;
+}
+
+/* 波光效果 */
+.top-nav::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  background: 
+    radial-gradient(circle at 10% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 5%),
+    radial-gradient(circle at 30% 70%, rgba(255, 255, 255, 0.08) 0%, transparent 5%),
+    radial-gradient(circle at 60% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 5%),
+    radial-gradient(circle at 90% 60%, rgba(255, 255, 255, 0.08) 0%, transparent 5%);
+  animation: waveSparkle 8s ease-in-out infinite alternate;
+  z-index: -1;
+}
+
+/* 波光动画 */
+@keyframes waveSparkle {
+  0% { 
+    transform: translateX(0) translateY(0); 
+    opacity: 0.3;
+  }
+  50% { 
+    transform: translateX(-5%) translateY(-2%); 
+    opacity: 0.6;
+  }
+  100% { 
+    transform: translateX(-10%) translateY(1%); 
+    opacity: 0.4;
+  }
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  font-family: var(--font-display);
+}
+
+.nav-brand-icon {
+  font-size: 22px;
+  color: var(--accent-cyan);
+  filter: drop-shadow(0 0 8px var(--accent-cyan-glow));
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--space-xl);
+  list-style: none;
+}
+
+.nav-links a {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+  transition: color 0.2s;
+  position: relative;
+  padding: 4px 0;
+}
+
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1.5px;
+  background: var(--accent-cyan);
+  transition: width 0.3s ease;
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+  color: var(--text-primary);
+}
+
+.nav-links a:hover::after,
+.nav-links a.active::after {
+  width: 100%;
+}
+
+.side-dots {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 99;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.side-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  cursor: pointer;
+  transition: background 0.3s, box-shadow 0.3s, transform 0.3s;
+  position: relative;
+}
+
+.side-dot:hover {
+  background: rgba(255,255,255,0.4);
+  transform: scale(1.4);
+}
+
+.side-dot.active {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 12px var(--accent-cyan-glow);
+  transform: scale(1.3);
+}
+
+.side-dot-tooltip {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.side-dot:hover .side-dot-tooltip {
+  opacity: 1;
+}
+
+/* ====== Hero — cinematic ====== */
+.hero {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3xl);
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 120px;
+  background: linear-gradient(180deg, 
+    rgba(240, 249, 255, 0) 0%, 
+    rgba(240, 249, 255, 0) 60%, 
+    rgba(240, 249, 255, 0.25) 80%, 
+    rgba(240, 249, 255, 0.7) 95%, 
+    #F8FAFF 100%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+
+.hero-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  filter: saturate(1.1) contrast(1.3) brightness(1.4);
+}
+
+.hero-bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  opacity: 0.22;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.hero-bg-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    linear-gradient(105deg, rgba(2,11,20,0.96) 0%, rgba(2,11,20,0.82) 38%, rgba(2,11,20,0.45) 70%, rgba(2,11,20,0.7) 100%),
+    radial-gradient(ellipse at 20% 60%, rgba(0,191,165,0.12) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.hero-content {
+  max-width: 620px;
+  z-index: 3;
+  position: relative;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  background: rgba(0,191,165,0.08);
+  border: 1px solid rgba(0,191,165,0.25);
+  margin-bottom: var(--space-xl);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.hero-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan-glow);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent-cyan-glow); }
+  50% { opacity: 0.4; box-shadow: 0 0 2px var(--accent-cyan-glow); }
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(44px, 7vw, 84px);
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  margin-bottom: var(--space-lg);
+  text-shadow: 0 2px 8px rgba(255,255,255,0.95), 0 0 24px rgba(255,255,255,0.8);
+}
+
+.hero-title .highlight {
+  background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-cyan) 60%, #7DE3D6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 24px var(--accent-cyan-glow));
+}
+
+.hero-subtitle {
+  font-size: clamp(15px, 1.4vw, 17.5px);
+  color: rgba(255,255,255,0.95);
+  line-height: 1.75;
+  margin-bottom: var(--space-2xl);
+  max-width: 480px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 12px rgba(0,0,0,0.2);
+}
+
+.hero-buttons {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hero-meta-row {
+  display: flex;
+  gap: var(--space-2xl);
+  margin-top: var(--space-3xl);
+  flex-wrap: wrap;
+}
+
+.hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hero-meta-value {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  letter-spacing: -0.02em;
+}
+
+.hero-meta:nth-child(even) .hero-meta-value {
+  color: var(--accent-orange);
+}
+
+.hero-meta-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hero-particle-zone {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 52%;
+  height: 100%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.hero-hub {
+  position: relative;
+  width: 280px;
+  height: 280px;
+}
+
+.hero-hub-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(0,191,165,0.8);
+  animation: hubPulse 4s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(0,191,165,0.3), inset 0 0 20px rgba(0,191,165,0.15);
+}
+
+.hero-hub-ring:nth-child(2) {
+  inset: 32px;
+  border-color: rgba(0,191,165,0.9);
+  animation-delay: 0.6s;
+  animation-direction: reverse;
+  box-shadow: 0 0 25px rgba(0,191,165,0.4), inset 0 0 25px rgba(0,191,165,0.2);
+}
+
+.hero-hub-ring:nth-child(3) {
+  inset: 64px;
+  border-color: rgba(0,191,165,1);
+  animation-delay: 1.2s;
+  box-shadow: 0 0 35px rgba(0,191,165,0.6), inset 0 0 35px rgba(0,191,165,0.3);
+}
+
+.hero-hub-core {
+  position: absolute;
+  inset: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,191,165,0.35) 0%, rgba(0,191,165,0.15) 60%, transparent 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 40px rgba(0,191,165,0.25);
+}
+
+.hero-hub-icon {
+  font-size: 34px;
+  color: var(--accent-cyan);
+  filter: drop-shadow(0 0 16px var(--accent-cyan-glow));
+  animation: hubIconPulse 3s ease-in-out infinite;
+}
+
+.hero-hub-arc {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: rgba(0,191,165,0.35);
+  border-right-color: rgba(0,191,165,0.12);
+  animation: hubSpin 12s linear infinite;
+}
+
+.hero-hub-arc:nth-child(6) {
+  inset: -22px;
+  border-top-color: rgba(240,165,0,0.2);
+  border-right-color: transparent;
+  border-bottom-color: rgba(240,165,0,0.08);
+  animation-duration: 18s;
+  animation-direction: reverse;
+}
+
+@keyframes hubPulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+
+@keyframes hubIconPulse {
+  0%, 100% { opacity: 0.7; filter: drop-shadow(0 0 12px var(--accent-cyan-glow)); }
+  50% { opacity: 1; filter: drop-shadow(0 0 24px var(--accent-cyan-glow)); }
+}
+
+@keyframes hubSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.hero-metric {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: rgba(8, 21, 37, 0.78);
+  border: 1px solid rgba(0,191,165,0.22);
+  border-radius: var(--radius-md);
+  padding: 11px 16px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: metricOrbit 18s linear infinite;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+}
+
+.hero-metric:nth-child(7)  { animation-delay: 0s; }
+.hero-metric:nth-child(8)  { animation-delay: -3.6s; }
+.hero-metric:nth-child(9)  { animation-delay: -7.2s; }
+.hero-metric:nth-child(10) { animation-delay: -10.8s; }
+.hero-metric:nth-child(11) { animation-delay: -14.4s; }
+
+.hero-metric-value {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.hero-metric:nth-child(even) .hero-metric-value {
+  color: var(--accent-orange);
+}
+
+.hero-metric-label {
+  font-size: 10.5px;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+.hero-metric-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 5px;
+  opacity: 0.8;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes metricOrbit {
+  from { transform: translate(-50%, -50%) rotate(0deg) translateX(165px) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg) translateX(165px) rotate(-360deg); }
+}
+
+.scroll-hint {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.scroll-hint-mouse {
+  width: 22px;
+  height: 34px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-radius: 12px;
+  position: relative;
+}
+
+.scroll-hint-mouse::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 7px;
+  background: var(--accent-cyan);
+  border-radius: 2px;
+  animation: scrollWheel 1.8s ease-in-out infinite;
+}
+
+@keyframes scrollWheel {
+  0%, 100% { opacity: 0; transform: translate(-50%, 0); }
+  40% { opacity: 1; }
+  80% { opacity: 0; transform: translate(-50%, 10px); }
+}
+
+/* ====== Buttons ====== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 36px;
+  border-radius: var(--radius-pill);
+  font-size: 14.5px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-lg {
+  padding: 16px 44px;
+  font-size: 15.5px;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 24px rgba(22, 93, 255, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.35);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-cyan) 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 24px rgba(255, 107, 0, 0.25);
+}
+
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(255, 107, 0, 0.3);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-cyan) 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 24px rgba(16, 185, 129, 0.25);
+}
+
+.btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+}
+
+.btn-primary:active,
+.btn-secondary:active,
+.btn-success:active,
+.btn-outline:active {
+  transform: scale(0.97);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.btn-outline {
+  background: rgba(255,255,255,0.9);
+  color: var(--text-primary);
+  border: 1px solid rgba(255,255,255,0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.btn-outline:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(0,191,165,0.4);
+  transform: translateY(-2px);
+}
+
+/* ====== Section base ====== */
+.section {
+  padding: var(--space-section) var(--space-xl);
+  position: relative;
+  z-index: 2;
+}
+
+.section-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.section-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin-bottom: var(--space-md);
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  background: rgba(0,191,165,0.06);
+  border: 1px solid rgba(0,191,165,0.2);
+}
+
+.section-tag::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan-glow);
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: var(--space-md);
+  background: linear-gradient(135deg, #0F172A 0%, #165DFF 30%, #7C3AED 60%, #FF6B00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(22, 93, 255, 0.1);
+  position: relative;
+  animation: gradient-shift 8s ease-in-out infinite;
+  background-size: 300% 100%;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-cyan), transparent);
+  border-radius: 2px;
+}
+
+.section-desc {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  max-width: 680px;
+  line-height: 1.8;
+  margin-bottom: var(--space-2xl);
+  letter-spacing: 0.01em;
+  opacity: 0.9;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.22,1,0.36,1);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ====== About ====== */
+#about {
+  position: relative;
+  padding-bottom: 220px;
+  overflow: hidden;
+  /* 纯白背景，完全使用用户提供的海洋图作为背景 */
+  background: #FFFFFF;
+}
+
+#about .about-ocean-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+  /* 背景图静止不动 */
+  animation: none;
+  /* 移除蒙版，让图片完整显示 */
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+#about .section-inner {
+  position: relative;
+  z-index: 3; /* 确保内容在背景图之上 */
+}
+
+/* ====== Evolution ====== */
+#evolution {
+  position: relative;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+#evolution::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 200px;
+  background: linear-gradient(0deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#evolution::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 200px;
+  background: linear-gradient(180deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#evolution .evolution-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+}
+
+#evolution .section-inner {
+  position: relative;
+  z-index: 3; /* 确保内容在背景图之上 */
+}
+
+/* ====== Features ====== */
+#features {
+  position: relative;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+#features::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 200px;
+  background: linear-gradient(0deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#features::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 200px;
+  background: linear-gradient(180deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#features .features-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+}
+
+#features .section-inner {
+  position: relative;
+  z-index: 3; /* 确保内容在背景图之上 */
+}
+
+/* ====== Stats ====== */
+#stats {
+  position: relative;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+#stats::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 200px;
+  background: linear-gradient(0deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#stats::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 200px;
+  background: linear-gradient(180deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#stats .stats-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+}
+
+#stats .section-inner {
+  position: relative;
+  z-index: 3; /* 确保内容在背景图之上 */
+}
+
+/* ====== Tech ====== */
+#tech {
+  position: relative;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+#tech::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 200px;
+  background: linear-gradient(0deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#tech::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 200px;
+  background: linear-gradient(180deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#tech .tech-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+}
+
+#tech .section-inner {
+  position: relative;
+  z-index: 3; /* 确保内容在背景图之上 */
+}
+
+/* ====== Live ====== */
+#live {
+  position: relative;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+#live::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 200px;
+  background: linear-gradient(0deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#live::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 200px;
+  background: linear-gradient(180deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#live .live-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+}
+
+#live .section-inner {
+  position: relative;
+  z-index: 3; /* 确保内容在背景图之上 */
+}
+
+/* ====== Scenarios ====== */
+#scenarios {
+  position: relative;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+#scenarios::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 200px;
+  background: linear-gradient(0deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#scenarios::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 200px;
+  background: linear-gradient(180deg, 
+    rgba(255,255,255,0) 0%, 
+    rgba(255,255,255,0.08) 25%, 
+    rgba(255,255,255,0.4) 60%, 
+    rgba(255,255,255,0.8) 85%, 
+    #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#scenarios .scenarios-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+}
+
+#scenarios .section-inner {
+  position: relative;
+  z-index: 3; /* 确保内容在背景图之上 */
+}
+
+/* 关于区块顶部渐变蒙版，让海洋图与白色背景自然融合 */
+#about::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 200px;
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #FFFFFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+#about::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 150px;
+  background: linear-gradient(180deg, 
+    rgba(248, 250, 255, 0) 0%, 
+    rgba(248, 250, 255, 0) 40%, 
+    rgba(248, 250, 255, 0.3) 70%, 
+    rgba(248, 250, 255, 0.8) 90%, 
+    #F8FAFF 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+
+
+
+#about .about-engineer {
+  position: absolute;
+  pointer-events: none;
+  height: auto;
+  z-index: 4;
+  filter: drop-shadow(0 14px 32px rgba(22, 93, 255, 0.22));
+}
+
+#about .about-engineer-hammer {
+  left: 5%;
+  bottom: 30px;
+  width: 280px;
+  animation: about-float 7s ease-in-out infinite;
+  /* CSS 兜底：万一图片有水印也裁掉底部 */
+  clip-path: inset(0 0 4% 0);
+  -webkit-clip-path: inset(0 0 4% 0);
+  opacity: 1 !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+#about .about-engineer-thinking {
+  right: 5%;
+  bottom: 60px;
+  width: 200px;
+  animation: about-float 7s ease-in-out infinite;
+  animation-delay: 2s;
+  /* CSS 兜底：裁掉右下角，杜绝水印显示 */
+  clip-path: inset(0 0 14% 0);
+  -webkit-clip-path: inset(0 0 14% 0);
+  opacity: 1 !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+#about .about-speech-bubble {
+  position: absolute;
+  right: 14%;
+  top: 90px;
+  z-index: 4;
+  background: linear-gradient(135deg, #ffffff 0%, #FFF9E6 100%);
+  color: #B45309;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  padding: 12px 18px;
+  border-radius: 18px;
+  border: 2px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 10px 28px rgba(245, 158, 11, 0.22);
+  pointer-events: none;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+#about .about-speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -11px;
+  right: 30px;
+  width: 18px;
+  height: 18px;
+  background: #fffefb;
+  border-right: 2px solid rgba(245, 158, 11, 0.3);
+  border-bottom: 2px solid rgba(245, 158, 11, 0.3);
+  transform: rotate(45deg);
+}
+
+@keyframes about-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50%      { transform: translateY(-14px) rotate(-1.2deg); }
+}
+
+.about-row {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: var(--space-3xl);
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.about-text .section-desc {
+  margin-bottom: 0;
+}
+
+.about-highlights {
+  display: flex;
+  gap: var(--space-lg);
+  margin-top: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.about-highlight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.about-highlight-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(0,191,165,0.1);
+  border: 1px solid rgba(0,191,165,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: var(--accent-cyan);
+}
+
+.about-img-wrap {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  aspect-ratio: 4/3;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--card-shadow), 0 20px 50px rgba(0,0,0,0.35);
+}
+
+.about-img-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,191,165,0.12) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.about-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.8s ease;
+}
+
+.about-img-wrap:hover img {
+  transform: scale(1.05);
+}
+
+.about-img-tag {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: rgba(2,11,20,0.7);
+  border: 1px solid rgba(0,191,165,0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-cyan);
+}
+
+.about-img-tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan-glow);
+}
+
+/* ====== Tech 背景动态元素 ====== */
+#tech {
+  position: relative;
+  overflow: hidden;
+}
+
+#tech .tech-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+/* 动态元素层 - 放在背景图和内容之间 */
+#tech .tech-bg-animations {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* 气泡通用样式 - 纯CSS实现，和原图气泡颜色完全匹配 */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(180, 230, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.4);
+  animation: bubble-rise linear infinite;
+}
+
+/* 气泡上浮动画 */
+@keyframes bubble-rise {
+  0% {
+    transform: translateY(100vh) scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-10vh) scale(1.2);
+    opacity: 0;
+  }
+}
+
+/* 不同大小和速度的气泡，位置对齐原图的气泡区域 */
+.bubble-1 { width: 8px; height: 8px; left: 15%; animation-duration: 12s; animation-delay: 0s; bottom: -10px; }
+.bubble-2 { width: 12px; height: 12px; left: 22%; animation-duration: 10s; animation-delay: 1s; bottom: -15px; }
+.bubble-3 { width: 6px; height: 6px; left: 28%; animation-duration: 14s; animation-delay: 2s; bottom: -8px; }
+.bubble-4 { width: 10px; height: 10px; left: 35%; animation-duration: 11s; animation-delay: 3s; bottom: -12px; }
+.bubble-5 { width: 15px; height: 15px; left: 45%; animation-duration: 9s; animation-delay: 0.5s; bottom: -20px; }
+.bubble-6 { width: 7px; height: 7px; left: 58%; animation-duration: 13s; animation-delay: 1.5s; bottom: -9px; }
+.bubble-7 { width: 9px; height: 9px; left: 67%; animation-duration: 10.5s; animation-delay: 2.5s; bottom: -11px; }
+.bubble-8 { width: 11px; height: 11px; left: 78%; animation-duration: 11.5s; animation-delay: 3.5s; bottom: -13px; }
+.bubble-9 { width: 5px; height: 5px; left: 85%; animation-duration: 15s; animation-delay: 4s; bottom: -7px; }
+
+/* 小鱼通用样式 - 纯CSS实现，颜色匹配原图的彩色鱼群 */
+.fish {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  animation: fish-swim ease-in-out infinite;
+}
+
+/* 小鱼游动动画 - 左右来回游动，轻微摇摆 */
+@keyframes fish-swim {
+  0% {
+    transform: translateX(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(30px) rotate(2deg);
+  }
+  50% {
+    transform: translateX(60px) rotate(-1deg);
+  }
+  75% {
+    transform: translateX(30px) rotate(2deg);
+  }
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+}
+
+/* 不同颜色和大小的小鱼，位置对齐原图的鱼群区域 */
+.fish-small-1 { 
+  border-width: 0 8px 6px 8px; 
+  border-color: transparent transparent #ffaa00 transparent; 
+  left: 20%; top: 60%; 
+  animation-duration: 8s; 
+  animation-delay: 0s; 
+}
+.fish-small-2 { 
+  border-width: 0 7px 5px 7px; 
+  border-color: transparent transparent #ff6600 transparent; 
+  left: 25%; top: 65%; 
+  animation-duration: 7s; 
+  animation-delay: 1s; 
+}
+.fish-small-3 { 
+  border-width: 0 9px 7px 9px; 
+  border-color: transparent transparent #ffff00 transparent; 
+  left: 32%; top: 58%; 
+  animation-duration: 9s; 
+  animation-delay: 2s; 
+}
+.fish-small-4 { 
+  border-width: 0 6px 4px 6px; 
+  border-color: transparent transparent #00ccff transparent; 
+  left: 40%; top: 62%; 
+  animation-duration: 7.5s; 
+  animation-delay: 0.5s; 
+}
+.fish-small-5 { 
+  border-width: 0 8px 6px 8px; 
+  border-color: transparent transparent #ff3366 transparent; 
+  left: 50%; top: 68%; 
+  animation-duration: 8.5s; 
+  animation-delay: 1.5s; 
+}
+
+/* 小丑鱼 - 橙白相间 */
+.fish-clown-1 {
+  width: 24px;
+  height: 16px;
+  background: linear-gradient(to right, #ff6600 30%, #ffffff 30%, #ffffff 45%, #ff6600 45%, #ff6600 60%, #ffffff 60%, #ffffff 75%, #ff6600 75%);
+  border-radius: 50% 20% 20% 50%;
+  border: none;
+  left: 60%;
+  top: 55%;
+  animation-duration: 10s;
+  animation-delay: 3s;
+}
+
+.fish-clown-1::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  top: 3px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 5px 0 5px 8px;
+  border-color: transparent transparent transparent #ff6600;
+}
+
+.fish-clown-2 {
+  width: 20px;
+  height: 13px;
+  background: linear-gradient(to right, #ff6600 30%, #ffffff 30%, #ffffff 45%, #ff6600 45%, #ff6600 60%, #ffffff 60%, #ffffff 75%, #ff6600 75%);
+  border-radius: 50% 20% 20% 50%;
+  border: none;
+  left: 68%;
+  top: 60%;
+  animation-duration: 9.5s;
+  animation-delay: 2s;
+}
+
+.fish-clown-2::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 2px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 7px;
+  border-color: transparent transparent transparent #ff6600;
+}
+
+/* 黄色热带鱼 */
+.fish-yellow-1 {
+  width: 18px;
+  height: 12px;
+  background: #ffff00;
+  border-radius: 50% 30% 30% 50%;
+  border: 1px solid #ffaa00;
+  left: 75%;
+  top: 52%;
+  animation-duration: 8s;
+  animation-delay: 1s;
+}
+
+.fish-yellow-1::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 2px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent #ffff00;
+}
+
+/* 浮动元素动画 - 上下浮动，模拟在水中的效果 */
+.float-element {
+  position: absolute;
+  animation: float-up-down ease-in-out infinite;
+}
+
+@keyframes float-up-down {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+/* 摇摆元素动画 - 海草、珊瑚左右摇摆 */
+.sway-element {
+  position: absolute;
+  transform-origin: bottom center;
+  animation: sway-left-right ease-in-out infinite;
+}
+
+@keyframes sway-left-right {
+  0%, 100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+/* 技术架构区域内容放在最上层 */
+#tech .section-inner {
+  position: relative;
+  z-index: 2;
+}
+
+/* ====== Scenarios 板块：3D 鱼游动容器（顶部 banner 区域） ====== */
+#scenarios-fish-canvas {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 60%;
+  z-index: 1; /* 位于背景图之上，标题之下 */
+  pointer-events: none;
+  overflow: hidden;
+}
+#scenarios-fish-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ====== Evolution (传统 vs 智能) ====== */
+.evo-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: var(--space-xl);
+  align-items: stretch;
+}
+
+.evo-card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+}
+
+.evo-card-old {
+  border-color: rgba(255,255,255,0.08);
+}
+
+.evo-card-new {
+  border-color: rgba(0,191,165,0.25);
+  box-shadow: 0 0 40px rgba(0,191,165,0.1);
+}
+
+.evo-img-stack {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+}
+
+.evo-img-stack img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(0.3) brightness(0.7);
+}
+
+.evo-card-new .evo-img-stack img {
+  filter: saturate(1.1) brightness(0.95);
+}
+
+.evo-img-stack::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(2,11,20,0.9) 100%);
+}
+
+.evo-label {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.evo-card-old .evo-label {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.evo-card-new .evo-label {
+  background: rgba(0,191,165,0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0,191,165,0.35);
+}
+
+.evo-body {
+  padding: var(--space-lg) var(--space-xl);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.evo-body h4 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.evo-card-new .evo-body h4 {
+  color: var(--accent-cyan);
+}
+
+.evo-body p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.evo-body ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.evo-body li {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  padding-left: 14px;
+  position: relative;
+}
+
+.evo-body li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 6px;
+  height: 1px;
+  background: var(--text-muted);
+}
+
+.evo-card-new .evo-body li::before {
+  background: var(--accent-cyan);
+}
+
+.evo-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.evo-arrow {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-cyan) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #020B14;
+  box-shadow: 0 0 24px rgba(240,165,0,0.3), 0 0 40px rgba(0,191,165,0.2);
+  animation: evoArrowPulse 3s ease-in-out infinite;
+}
+
+@keyframes evoArrowPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.evo-divider-text {
+  writing-mode: vertical-rl;
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ====== Features ====== */
+.feature-hero-img {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: visible;
+  aspect-ratio: 21/9;
+  margin-bottom: var(--space-2xl);
+  margin-top: 40px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--card-shadow), 0 20px 50px rgba(0,0,0,0.35);
+}
+
+.feature-hero-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ====== Robot Mascot Sprite ====== */
+.robot-mascot {
+  position: absolute;
+  top: -340px;
+  right: -20px;
+  width: 360px !important;
+  height: auto !important;
+  z-index: 100;
+  pointer-events: auto;
+  cursor: grab;
+  filter: drop-shadow(0 16px 40px rgba(22, 93, 255, 0.45)) drop-shadow(0 6px 16px rgba(0, 0, 0, 0.25));
+  transform-origin: bottom center;
+  will-change: transform;
+}
+
+.robot-mascot:hover {
+  filter: drop-shadow(0 20px 50px rgba(22, 93, 255, 0.6)) drop-shadow(0 8px 24px rgba(0, 0, 0, 0.3));
+}
+
+.robot-mascot.mascot-look-left { transform: scaleX(-1); }
+.robot-mascot.mascot-excited { animation: mascot-bounce 0.4s ease-in-out; }
+
+@keyframes mascot-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-15px) scale(1.08) rotate(-3deg); }
+  60% { transform: translateY(-8px) scale(1.04) rotate(2deg); }
+}
+
+.feature-hero-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(2,11,20,0.85) 100%);
+  pointer-events: none;
+}
+
+.feature-hero-cap {
+  position: absolute;
+  left: var(--space-xl);
+  bottom: var(--space-lg);
+  z-index: 2;
+  font-size: 13px;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.feature-hero-cap strong {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 20px;
+}
+
+.feature-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl) 26px;
+  transition: background 0.3s, border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+.feature-card:nth-child(4n+1)::before {
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+}
+.feature-card:nth-child(4n+2)::before {
+  background: linear-gradient(90deg, transparent, var(--accent-orange), transparent);
+}
+.feature-card:nth-child(4n+3)::before {
+  background: linear-gradient(90deg, transparent, var(--accent-purple), transparent);
+}
+.feature-card:nth-child(4n+4)::before {
+  background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+}
+
+.feature-card:hover {
+  background: rgba(255, 255, 255, 0.98);
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow), 0 0 0 1px rgba(22, 93, 255, 0.08);
+}
+.feature-card:hover::before {
+  opacity: 1;
+}
+
+.feature-card:hover::before {
+  opacity: 1;
+}
+
+.feature-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(0,191,165,0.15) 0%, rgba(0,191,165,0.05) 100%);
+  border: 1px solid rgba(0,191,165,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: var(--accent-cyan);
+  position: relative;
+}
+
+.feature-icon::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 16px;
+  border: 1px solid rgba(0,191,165,0.15);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.feature-card:hover .feature-icon::after {
+  opacity: 1;
+}
+
+.feature-card h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+
+.feature-card p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ====== Stats ====== */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-card);
+  perspective: 1000px; /* 3D视角 */
+}
+
+.stat-item {
+  position: relative;
+  min-height: 140px;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.stat-item:hover {
+  transform: rotateY(180deg) !important;
+}
+
+.stat-item-front,
+.stat-item-back {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  text-align: center;
+}
+
+.stat-item-front {
+  background: rgba(255, 255, 255, 0.7);
+  border-left: 3px solid transparent;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.stat-item:nth-child(4n+1) .stat-item-front {
+  border-left-color: var(--accent-cyan);
+}
+.stat-item:nth-child(4n+2) .stat-item-front {
+  border-left-color: var(--accent-orange);
+}
+.stat-item:nth-child(4n+3) .stat-item-front {
+  border-left-color: var(--accent-purple);
+}
+.stat-item:nth-child(4n+4) .stat-item-front {
+  border-left-color: var(--accent-green);
+}
+
+.stat-item-back {
+  transform: rotateY(180deg);
+  color: #FFFFFF;
+  font-size: 13px;
+  line-height: 1.6;
+  font-weight: 500;
+  padding: 24px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.stat-item:nth-child(4n+1) .stat-item-back {
+  background: linear-gradient(135deg, var(--accent-cyan) 0%, #0047CC 100%);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.1);
+}
+.stat-item:nth-child(4n+2) .stat-item-back {
+  background: linear-gradient(135deg, var(--accent-orange) 0%, #E65100 100%);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.1);
+}
+.stat-item:nth-child(4n+3) .stat-item-back {
+  background: linear-gradient(135deg, var(--accent-purple) 0%, #5B21B6 100%);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.1);
+}
+.stat-item:nth-child(4n+4) .stat-item-back {
+  background: linear-gradient(135deg, var(--accent-green) 0%, #059669 100%);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.1);
+}
+
+.stat-item-front::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40%;
+  height: 2px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.stat-item:nth-child(4n+1) .stat-item-front::before {
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+}
+.stat-item:nth-child(4n+2) .stat-item-front::before {
+  background: linear-gradient(90deg, transparent, var(--accent-orange), transparent);
+}
+.stat-item:nth-child(4n+3) .stat-item-front::before {
+  background: linear-gradient(90deg, transparent, var(--accent-purple), transparent);
+}
+.stat-item:nth-child(4n+4) .stat-item-front::before {
+  background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+}
+
+.stat-item:hover .stat-item-front::before {
+  opacity: 1;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--accent-cyan);
+  line-height: 1.1;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 16px rgba(0,191,165,0.2));
+}
+
+.stat-item:nth-child(2) .stat-value,
+.stat-item:nth-child(4) .stat-value {
+  color: var(--accent-orange);
+  filter: drop-shadow(0 0 16px rgba(240,165,0,0.2));
+}
+
+.stat-unit {
+  font-size: 22px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  letter-spacing: 0.02em;
+}
+
+/* ====== Tech ====== */
+.tech-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.tech-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 30px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+
+.tech-card:hover {
+  border-color: rgba(0,191,165,0.22);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+  transform: translateY(-3px);
+}
+
+.tech-card h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  color: var(--accent-cyan);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 12px rgba(0,191,165,0.25);
+}
+
+.tech-card h3::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan-glow);
+  flex-shrink: 0;
+}
+
+.tech-card ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.tech-card li {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  padding-left: 16px;
+  position: relative;
+  line-height: 1.55;
+}
+
+.tech-card li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 5px;
+  height: 1px;
+  background: rgba(0,191,165,0.5);
+}
+
+.arch-diagram {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 48px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  margin-top: var(--space-xl);
+}
+
+.arch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.arch-node {
+  padding: 11px 22px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  background: rgba(0,191,165,0.08);
+  border: 1px solid rgba(0,191,165,0.28);
+  color: var(--accent-cyan);
+  transition: box-shadow 0.3s, transform 0.3s;
+}
+
+.arch-node:hover {
+  box-shadow: var(--glow-teal);
+  transform: translateY(-2px);
+}
+
+.arch-node.dark {
+  background: rgba(255,255,255,0.03);
+  border-color: var(--border-card);
+  color: var(--text-secondary);
+}
+
+.arch-node.dark:hover {
+  box-shadow: none;
+  border-color: rgba(255,255,255,0.18);
+}
+
+.arch-arrow {
+  font-size: 18px;
+  color: var(--accent-cyan);
+  opacity: 0.5;
+}
+
+/* ====== Live video showcase ====== */
+.live-wrap {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid rgba(0,191,165,0.2);
+  box-shadow: var(--card-shadow), 0 24px 60px rgba(0,0,0,0.45);
+  aspect-ratio: 16/9;
+  background: #000;
+}
+
+.live-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.live-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 60%, rgba(2,11,20,0.7) 100%);
+  pointer-events: none;
+}
+
+.live-badge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  background: rgba(230,0,35,0.85);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(230,0,35,0.4);
+}
+
+.live-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.live-cap {
+  position: absolute;
+  left: var(--space-xl);
+  bottom: var(--space-lg);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.live-cap-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.live-cap-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.04em;
+}
+
+/* ====== Scenarios ====== */
+.scenario-list {
+  position: relative;
+  height: 550px;
+  perspective: 2000px;
+  overflow: visible;
+  margin: 60px auto;
+  max-width: 1400px;
+  transform-style: preserve-3d;
+  /* 仰拍10度视角，增强立体感 */
+  transform: rotateX(-10deg);
+  transform-origin: center center;
+}
+
+/* 卡片水平环绕动画 - 始终面向观众，沿水平圆环移动 */
+.scenario-item {
+  position: absolute;
+  width: 320px;
+  left: 50%;
+  margin-left: -160px;
+  top: 50%;
+  margin-top: -190px;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: box-shadow 0.3s ease;
+  min-height: 380px;
+  transform-origin: center center;
+  will-change: transform, opacity, z-index;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-fill-mode: forwards;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  cursor: pointer;
+}
+
+/* 悬停时突出显示 */
+.scenario-item:hover {
+  border-color: rgba(22, 93, 255, 0.4);
+  box-shadow: 
+    0 24px 60px rgba(22, 93, 255, 0.22),
+    0 8px 24px rgba(0,0,0,0.15);
+}
+
+/* 四个卡片使用同一套半圆弧动画，通过相位差实现均匀分布，仅在前半部分移动 */
+.scenario-item:nth-child(1) { animation-name: halfOrbit; animation-duration: 20s; animation-delay: 0s; }
+.scenario-item:nth-child(2) { animation-name: halfOrbit; animation-duration: 20s; animation-delay: -5s; }
+.scenario-item:nth-child(3) { animation-name: halfOrbit; animation-duration: 20s; animation-delay: -10s; }
+.scenario-item:nth-child(4) { animation-name: halfOrbit; animation-duration: 20s; animation-delay: -15s; }
+
+/* 半圆弧环绕动画 - 仅在前半部分移动，从最左端到最右端，到达右端后直接跳回左端，形成无后半部分的半圆环效果 */
+@keyframes halfOrbit {
+  0%   { transform: translateX(-750px) translateZ(-100px) scale(0.7);  opacity: 0.5; z-index: 1; }
+  25%  { transform: translateX(-350px) translateZ(200px)  scale(0.9);  opacity: 0.8; z-index: 3; }
+  50%  { transform: translateX(0)      translateZ(400px)  scale(1);    opacity: 1;   z-index: 10; }
+  75%  { transform: translateX(350px)  translateZ(200px)  scale(0.9);  opacity: 0.8; z-index: 3; }
+  99.9%{ transform: translateX(750px)  translateZ(-100px) scale(0.7);  opacity: 0.5; z-index: 1; }
+  100% { transform: translateX(-750px) translateZ(-100px) scale(0.7);  opacity: 0.5; z-index: 1; }
+}
+
+
+.scenario-img {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+}
+
+.scenario-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  backface-visibility: hidden;
+}
+
+.scenario-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(2,11,20,0.2) 0%, rgba(2,11,20,0.85) 100%);
+}
+
+.scenario-num {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 2;
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  opacity: 0.6;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.scenario-body {
+  padding: 24px 28px 30px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scenario-body h4 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.scenario-body p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+/* ====== CTA ====== */
+.cta-section {
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  min-height: 620px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cta-video-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  filter: saturate(1.06) contrast(1.05);
+}
+
+.cta-video-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg,
+      rgba(2,11,20,0.96) 0%,
+      rgba(2,11,20,0.45) 16%,
+      rgba(2,11,20,0) 38%,
+      rgba(2,11,20,0) 62%,
+      rgba(2,11,20,0.42) 84%,
+      rgba(2,11,20,0.95) 100%);
+  pointer-events: none;
+}
+
+.cta-section .section-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+}
+
+.cta-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background: linear-gradient(180deg, rgba(0,191,165,0.07) 0%, transparent 100%);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.cta-section::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(180deg, transparent 0%, #023E8A 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.cta-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-3xl) var(--space-4xl);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-xl);
+  max-width: 680px;
+  position: relative;
+  overflow: visible;
+}
+
+.cta-card .section-title {
+  margin-bottom: 8px;
+  position: relative;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.cta-card .section-desc {
+  margin: 0 auto 32px;
+  position: relative;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+}
+
+/* ====== Image Fusion Effects ====== */
+/* 恢复图片原始状态，移除所有新添加的效果 */
+img {
+  opacity: 1 !important;
+  animation: none !important;
+  filter: none !important;
+}
+
+/* 保留图片悬停效果 */
+.feature-hero-img:hover,
+.about-img-wrap:hover,
+.live-wrap:hover {
+  transform: translateY(-2px) scale(1.005);
+  transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+}
+
+/* ====== Footer ====== */
+.footer {
+  padding: var(--space-2xl) var(--space-xl);
+  border-top: none;
+  position: relative;
+  z-index: 2;
+  background: transparent;
+  overflow: hidden;
+}
+
+.footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background: linear-gradient(0deg, transparent 0%, #023E8A 100%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.footer-bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+  opacity: 1;
+  mix-blend-mode: normal;
+  pointer-events: none;
+}
+
+/* ====== Responsive Design ====== */
+@media (max-width: 1200px) {
+  /* 中等屏幕下3D旋转布局回退为网格 */
+  .scenario-list {
+    height: auto;
+    perspective: none;
+    animation: none !important;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    max-width: 100%;
+  }
+  .scenario-item {
+    position: relative;
+    width: auto;
+    left: auto !important;
+    margin-left: 0 !important;
+    top: auto !important;
+    margin-top: 0 !important;
+    transform: none !important;
+    transform-origin: unset !important;
+    animation: none !important;
+    opacity: 1 !important;
+    min-height: 320px;
+  }
+  .scenario-img {
+    height: 180px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .top-nav {
+    padding: 0 var(--space-xl);
+  }
+  
+  .hero {
+    padding: 0 var(--space-xl);
+  }
+  
+  .hero-particle-zone {
+    display: none;
+  }
+  
+  .hero-content {
+    max-width: 100%;
+    text-align: center;
+  }
+  
+  .hero-buttons {
+    justify-content: center;
+  }
+  
+  .hero-meta-row {
+    justify-content: center;
+  }
+  
+  .about-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .evo-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-2xl);
+  }
+  
+  .evo-divider {
+    flex-direction: row;
+    padding: var(--space-lg) 0;
+  }
+  
+  .evo-divider-text {
+    writing-mode: horizontal-tb;
+  }
+  
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .scenario-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .nav-links {
+    display: none;
+  }
+  
+  .side-dots {
+    display: none;
+  }
+  
+  .hero-title {
+    font-size: clamp(36px, 10vw, 48px);
+  }
+  
+  .hero-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn {
+    width: 100%;
+    max-width: 320px;
+  }
+  
+  .section {
+    padding: var(--space-2xl) var(--space-md);
+  }
+  
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .tech-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .cta-card {
+    padding: var(--space-2xl) var(--space-xl);
+  }
+}
+
+@media (max-width: 768px) {
+  .scenario-list {
+    grid-template-columns: 1fr !important;
+  }
+  .scenario-img {
+    height: 160px;
+  }
+  .scenario-item {
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .scenario-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .hero-meta-row {
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+}
+
+.footer-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.footer-brand-icon {
+  color: #ffffff;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));
+}
+
+.footer-links {
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.9);
+  list-style: none;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+.footer-links a {
+  color: rgba(255,255,255,0.9);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+  color: #ffffff;
+}
+
+.footer-links a:hover {
+  color: var(--accent-cyan);
+}
+
+.footer-copy {
+  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+/* ====== Shark Mascot — floating companion ====== */
+.shark-mascot {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 88px;
+  height: 88px;
+  z-index: 95;
+  cursor: pointer;
+  animation: sharkFloat 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes sharkFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.shark-mascot-img,
+.shark-mascot-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  background: rgba(2,11,20,0.5);
+  border: 1.5px solid rgba(0,191,165,0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 24px rgba(0,191,165,0.2);
+  transition: opacity 0.3s;
+}
+
+.shark-mascot-video {
+  opacity: 0;
+}
+
+.shark-mascot:hover .shark-mascot-img {
+  opacity: 0;
+}
+
+.shark-mascot:hover .shark-mascot-video {
+  opacity: 1;
+}
+
+.shark-mascot-bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 50%;
+  transform: translateX(50%) translateY(6px);
+  background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-cyan) 100%);
+  color: #020B14;
+  padding: 7px 14px;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  box-shadow: 0 6px 18px rgba(0,191,165,0.4);
+}
+
+.shark-mascot-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--accent-cyan);
+}
+
+.shark-mascot:hover .shark-mascot-bubble {
+  opacity: 1;
+  transform: translateX(50%) translateY(0);
+}
+
+@media (max-width: 640px) {
+  .shark-mascot {
+    width: 64px;
+    height: 64px;
+    bottom: 16px;
+    right: 16px;
+  }
+  .shark-mascot-bubble {
+    font-size: 10px;
+    padding: 5px 10px;
+  }
+}
+
+/* ====== Transition Overlay (保留原样) ====== */
+.transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: var(--bg-deep);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  clip-path: circle(0% at 50% 50%);
+  transition: clip-path 0.55s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+}
+
+.transition-overlay.active {
+  clip-path: circle(100% at 50% 50%);
+}
+
+.transition-overlay.exiting {
+  transform: scale(0.97);
+  opacity: 0;
+  transition: transform 0.2s ease-in, opacity 0.2s ease-in;
+}
+
+.logo-ring-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.transition-overlay.active .logo-ring-wrap {
+  opacity: 1;
+}
+
+.logo-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--accent-cyan);
+}
+
+.transition-overlay.active .logo-ring {
+  animation: ringRotate 0.6s cubic-bezier(0.4,0,0.2,1) 0.15s forwards;
+}
+
+@keyframes ringRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.logo-ring-anchor {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 23px;
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.transition-overlay.active .logo-ring-anchor {
+  animation: anchorPop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.75s forwards;
+}
+
+@keyframes anchorPop {
+  0% { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.brand-text {
+  margin-top: 18px;
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.transition-overlay.active .brand-text {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.95s;
+}
+
+.dots-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 28px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.transition-overlay.active .dots-row {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.95s;
+}
+
+.dot-prog {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  transition: background 0.25s, box-shadow 0.25s, transform 0.25s;
+}
+
+.dot-prog.lit {
+  background: var(--accent-orange);
+  box-shadow: 0 0 8px var(--accent-orange-glow);
+  transform: scale(1.3);
+}
+
+.progress-text {
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.transition-overlay.active .progress-text {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.95s;
+}
+
+.hull-info {
+  position: absolute;
+  bottom: 28px;
+  right: 32px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(255,255,255,0.15);
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.transition-overlay.active .hull-info {
+  opacity: 1;
+  transition-delay: 1.2s;
+}
+
+/* ====== Responsive ====== */
+@media (max-width: 980px) {
+  .evo-grid {
+    grid-template-columns: 1fr;
+  }
+  .evo-divider {
+    flex-direction: row;
+    padding: 8px 0;
+  }
+  .evo-divider-text {
+    writing-mode: horizontal-tb;
+  }
+}
+
+@media (max-width: 1100px) {
+  .scenario-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .hero {
+    padding: var(--space-2xl) var(--space-lg);
+    min-height: auto;
+    padding-top: 120px;
+    padding-bottom: 80px;
+    flex-direction: column;
+  }
+
+  .hero-content {
+    max-width: 100%;
+  }
+
+  .hero-particle-zone {
+    position: relative;
+    width: 100%;
+    height: 240px;
+    margin-top: var(--space-2xl);
+  }
+
+  .hero-hub {
+    width: 220px;
+    height: 220px;
+  }
+
+  .about-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-2xl);
+  }
+
+  .feature-hero-img {
+    aspect-ratio: 16/9;
+  }
+
+  .scenario-list {
+    grid-template-columns: 1fr;
+  }
+
+  .section {
+    padding: var(--space-3xl) var(--space-lg);
+  }
+
+  .side-dots {
+    display: none;
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .top-nav {
+    padding: 0 var(--space-lg);
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-title {
+    font-size: clamp(32px, 9vw, 48px);
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .footer-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cta-card {
+    padding: var(--space-xl) var(--space-lg);
+  }
+
+  .hero-meta-row {
+    gap: var(--space-xl);
+  }
+}
+</style>
+</head>
+<body>
+<!-- 自定义鼠标光标 - 3D水泡泡 -->
+<div class="cursor-bubble"></div>
+<div id="cursorRippleContainer"></div>
+<div id="cursorTrailContainer"></div>
+<!-- 测试固定气泡，最高层级 -->
+  <!-- 动态背景视频（海底流动效果） -->
+  <video class="bg-video" autoplay muted loop playsinline>
+    <source src="ocean_background.mp4" type="video/mp4">
+  </video>
+
+<canvas id="particle-canvas"></canvas>
+
+<nav class="top-nav" id="topNav">
+  <div class="nav-brand">
+    <span class="nav-brand-icon">&#9875;</span>轮机智脑
+  </div>
+  <ul class="nav-links">
+    <li><a href="#about" data-section="about">关于</a></li>
+    <li><a href="#features" data-section="features">功能</a></li>
+    <li><a href="#stats" data-section="stats">数据</a></li>
+    <li><a href="#tech" data-section="tech">架构</a></li>
+    <li><a href="#scenarios" data-section="scenarios">场景</a></li>
+  </ul>
+</nav>
+
+<div class="side-dots" id="sideDots">
+  <a class="side-dot" href="#hero" data-section="hero"><span class="side-dot-tooltip">首页</span></a>
+  <a class="side-dot" href="#about" data-section="about"><span class="side-dot-tooltip">关于</span></a>
+  <a class="side-dot" href="#features" data-section="features"><span class="side-dot-tooltip">功能</span></a>
+  <a class="side-dot" href="#stats" data-section="stats"><span class="side-dot-tooltip">数据</span></a>
+  <a class="side-dot" href="#tech" data-section="tech"><span class="side-dot-tooltip">架构</span></a>
+  <a class="side-dot" href="#scenarios" data-section="scenarios"><span class="side-dot-tooltip">场景</span></a>
+</div>
+
+<section class="hero" id="hero">
+  <img class="hero-bg-img" src="images/hero-bg.png" alt="" aria-hidden="true">
+  <video class="hero-bg-video" src="images/agent-live.mp4" autoplay loop muted playsinline preload="auto"></video>
+  <div class="hero-bg-overlay"></div>
+  <div class="hero-content">
+    <div class="hero-badge reveal">
+      <span class="hero-badge-dot"></span> 远洋轮机 · 智能中枢
+    </div>
+    <h1 class="hero-title reveal reveal-delay-1">
+      轮机智脑<br>
+      下一代船舶<span class="highlight">轮机</span><br>
+      智能运维平台
+    </h1>
+    <p class="hero-subtitle reveal reveal-delay-2">
+      融合数字孪生、大语言模型与实时数据驱动，为远洋船舶轮机管理构建全生命周期健康管理与智能决策闭环。
+    </p>
+    <div class="hero-buttons reveal reveal-delay-3">
+      <button class="btn btn-primary btn-lg" id="btnDemo">开始演示</button>
+      <a href="#live" class="btn btn-outline">历史数据</a>
+    </div>
+    <div class="hero-meta-row reveal reveal-delay-4">
+      <div class="hero-meta">
+        <div class="hero-meta-value">99.7%</div>
+        <div class="hero-meta-label">系统可用率</div>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-meta-value">&le;12ms</div>
+        <div class="hero-meta-label">告警响应延迟</div>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-meta-value">24/7</div>
+        <div class="hero-meta-label">不间断值守</div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-particle-zone" id="heroParticleZone">
+    <div class="hero-hub">
+      <div class="hero-hub-ring"></div>
+      <div class="hero-hub-ring"></div>
+      <div class="hero-hub-ring"></div>
+      <div class="hero-hub-core">
+        <span class="hero-hub-icon">&#9881;</span>
+      </div>
+      <div class="hero-hub-arc"></div>
+      <div class="hero-hub-arc"></div>
+      <div class="hero-metric">
+        <div class="hero-metric-value"><span class="hero-metric-dot"></span>&le;12ms</div>
+        <div class="hero-metric-label">告警响应延迟</div>
+      </div>
+      <div class="hero-metric">
+        <div class="hero-metric-value"><span class="hero-metric-dot"></span>多维</div>
+        <div class="hero-metric-label">数据可视化呈现</div>
+      </div>
+      <div class="hero-metric">
+        <div class="hero-metric-value"><span class="hero-metric-dot"></span>24/7</div>
+        <div class="hero-metric-label">不间断值守</div>
+      </div>
+      <div class="hero-metric">
+        <div class="hero-metric-value"><span class="hero-metric-dot"></span>AI</div>
+        <div class="hero-metric-label">机舱助手工程师</div>
+      </div>
+      <div class="hero-metric">
+        <div class="hero-metric-value"><span class="hero-metric-dot"></span>&#10003;</div>
+        <div class="hero-metric-label">辅助决策</div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-hint">
+    <div class="scroll-hint-mouse"></div>
+    <span>Scroll</span>
+  </div>
+</section>
+
+<section class="section" id="about">
+  <img class="about-ocean-bg" src="images/ocean_decoration.png?v=2026073003" alt="" aria-hidden="true">
+  <div class="section-inner">
+    <div class="section-tag reveal">About</div>
+    <div class="about-row">
+      <div class="about-text reveal reveal-delay-1">
+        <h2 class="section-title">面向远洋船舶的智能运维中枢</h2>
+        <p class="section-desc">
+          轮机智脑深度融合船舶主机数字孪生模型与大语言模型能力，实现对 MAN B&amp;W 12K98ME-C7 等大型低速二冲程柴油机的全生命周期健康管理与智能决策支持。
+        </p>
+        <div class="about-highlights">
+          <div class="about-highlight">
+            <div class="about-highlight-icon">&#9889;</div> 数字孪生驱动
+          </div>
+          <div class="about-highlight">
+            <div class="about-highlight-icon">&#128640;</div> 毫秒级响应
+          </div>
+          <div class="about-highlight">
+            <div class="about-highlight-icon">&#127758;</div> 船岸一体化
+          </div>
+        </div>
+      </div>
+      <div class="about-img-wrap reveal reveal-delay-2">
+        <img src="images/diesel-engine.jpg" alt="船舶主机柴油机" loading="lazy">
+        <div class="about-img-tag">
+          <span class="about-img-tag-dot"></span> MAN B&amp;W 12K98ME-C7
+        </div>
+      </div>
+    </div>
+  </div>
+  <img class="about-engineer about-engineer-hammer" src="images/engineer_hammer.png?v=20260729" alt="" aria-hidden="true">
+  <img class="about-engineer about-engineer-thinking" src="images/engineer_thinking.png?v=20260729" alt="" aria-hidden="true">
+  <div class="about-speech-bubble">这个机器<br>该修一修了！</div>
+</section>
+
+<section class="section" id="evolution">
+  <img class="evolution-bg" src="images/evolution_bg.png?v=2026073001" alt="" aria-hidden="true">
+  <div class="section-inner">
+    <div class="section-tag reveal">Evolution</div>
+    <h2 class="section-title reveal reveal-delay-1">从传统值守到智能体协同</h2>
+    <p class="section-desc reveal reveal-delay-1">轮机管理正经历从人工经验驱动到 AI 数据驱动的范式跃迁，轮机智脑正是这一跃迁的核心引擎。</p>
+    <div class="evo-grid">
+      <div class="evo-card evo-card-old reveal reveal-delay-1">
+        <div class="evo-img-stack">
+          <img src="images/traditional-ui.jpg" alt="传统轮机交互界面" loading="lazy">
+          <span class="evo-label">传统方式</span>
+        </div>
+        <div class="evo-body">
+          <h4>人工巡视 · 经验判断</h4>
+          <p>轮机员定时巡检、纸质记录、电话汇报，依赖个人经验识别异常。</p>
+          <ul>
+            <li>参数散落于多个仪表盘</li>
+            <li>异常发现滞后于故障发展</li>
+            <li>知识难以沉淀与传承</li>
+          </ul>
+        </div>
+      </div>
+      <div class="evo-divider reveal reveal-delay-2">
+        <div class="evo-arrow">&rarr;</div>
+        <div class="evo-divider-text">AI Era</div>
+      </div>
+      <div class="evo-card evo-card-new reveal reveal-delay-3">
+        <div class="evo-img-stack">
+          <img src="images/agent-control.png" alt="智能体操控传感器数据" loading="lazy">
+          <span class="evo-label">智能体时代</span>
+        </div>
+        <div class="evo-body">
+          <h4>智能体协同 · 实时决策</h4>
+          <p>AI 智能体全天候监控 200+ 传感器，主动诊断、预测预警、自然语言交互。</p>
+          <ul>
+            <li>多模态数据融合可视化</li>
+            <li>故障提前 72 小时预警</li>
+            <li>知识图谱持续积累迭代</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <img class="features-bg" src="images/features_bg.png?v=2026073001" alt="" aria-hidden="true">
+  <div class="section-inner">
+    <div class="section-tag reveal">Core Features</div>
+    <h2 class="section-title reveal reveal-delay-1">四大核心能力</h2>
+    <p class="section-desc reveal reveal-delay-1">覆盖监测、诊断、决策、知识四大维度，构建完整的轮机智能运维闭环</p>
+    <div class="feature-hero-img reveal reveal-delay-2">
+      <img src="images/agent-control.png" alt="智能体在把玩操控这些传感器数据" loading="lazy">
+      <img class="robot-mascot" src="images/robot_mascot.png?v=20260731" alt="轮机智脑萌宠精灵" loading="eager">
+      <div class="feature-hero-cap">智能体实时操控多源传感器数据 · <strong>多模态融合可视化</strong></div>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon">&#9673;</div>
+        <h3>实时状态监测</h3>
+        <p>采集气缸压力、排气温度、扫气压力、滑油品质等 200+ 传感器数据，构建高保真数字孪生体，毫秒级同步船岸数据流。</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon">&#9881;</div>
+        <h3>智能故障诊断</h3>
+        <p>基于专家知识图谱与大语言模型推理引擎，实现故障根因分析与维修方案自动生成，将平均排故时间缩短 60% 以上。</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon">&#9776;</div>
+        <h3>预测性维护决策</h3>
+        <p>利用时序预测模型与退化曲线分析，提前 72 小时预警关键部件失效风险，优化备件库存与坞修窗口规划。</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-4">
+        <div class="feature-icon">&#9870;</div>
+        <h3>轮机知识引擎</h3>
+        <p>整合 MAN ES 技术规范、船舶维修手册与历史工单，支持自然语言问答、技术文献检索与操作指引即时生成。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="stats">
+  <img class="stats-bg" src="images/stats_bg.png?v=2026073001" alt="" aria-hidden="true">
+  <div class="section-inner">
+    <div class="section-tag reveal">Performance</div>
+    <h2 class="section-title reveal reveal-delay-1">平台运行数据</h2>
+    <p class="section-desc reveal reveal-delay-1">服务于多艘远洋船舶的实时智能化运维，持续迭代优化</p>
+    <div class="stats-row reveal reveal-delay-2">
+      <div class="stat-item">
+        <div class="stat-item-front">
+          <div class="stat-value">200<span class="stat-unit">+</span></div>
+          <div class="stat-label">监测参数点位</div>
+        </div>
+        <div class="stat-item-back">
+          覆盖气缸压力、排气温度、扫气压力、滑油品质等全维度主机运行参数，实现多源数据融合分析
+        </div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-front">
+          <div class="stat-value">99.7<span class="stat-unit">%</span></div>
+          <div class="stat-label">数据采集可用率</div>
+        </div>
+        <div class="stat-item-back">
+          边缘计算节点冗余设计，支持断网缓存续传，确保极端海况下数据完整性不受影响
+        </div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-front">
+          <div class="stat-value">60<span class="stat-unit">%</span></div>
+          <div class="stat-label">排故时间缩短</div>
+        </div>
+        <div class="stat-item-back">
+          AI智能诊断结合知识图谱，自动生成维修方案，大幅减少人工排查与技术资料检索时间
+        </div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-item-front">
+          <div class="stat-value">72<span class="stat-unit">h</span></div>
+          <div class="stat-label">故障提前预警窗口</div>
+        </div>
+        <div class="stat-item-back">
+          基于时序预测模型的退化趋势分析，在故障发生前72小时给出预警，预留充足处置时间
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tech">
+  <img class="tech-bg" src="images/tech_bg.png?v=2026073001" alt="" aria-hidden="true">
+  <!-- 背景图动态元素层 - 和原图完全对齐，看起来就是背景图本身在动 -->
+  <div class="tech-bg-animations" aria-hidden="true">
+    <!-- 气泡群 - 对齐原图气泡位置 -->
+    <div class="bubble bubble-1"></div>
+    <div class="bubble bubble-2"></div>
+    <div class="bubble bubble-3"></div>
+    <div class="bubble bubble-4"></div>
+    <div class="bubble bubble-5"></div>
+    <div class="bubble bubble-6"></div>
+    <div class="bubble bubble-7"></div>
+    <div class="bubble bubble-8"></div>
+    <div class="bubble bubble-9"></div>
+    
+    <div class="fish fish-angelfish"></div>
+    
+    <!-- 浮动元素 - 轻微上下浮动 -->
+    <div class="float-element dolphin"></div>
+    <div class="float-element sailboat"></div>
+    <div class="float-element seagull-1"></div>
+    <div class="float-element seagull-2"></div>
+    
+    <!-- 摇摆元素 - 海草、珊瑚轻微摇摆 -->
+    <div class="sway-element seaweed-1"></div>
+    <div class="sway-element seaweed-2"></div>
+    <div class="sway-element seaweed-3"></div>
+    <div class="sway-element coral-1"></div>
+    <div class="sway-element coral-2"></div>
+    <div class="sway-element coral-3"></div>
+  </div>
+  <div class="section-inner">
+    <div class="section-tag reveal">Tech Stack</div>
+    <h2 class="section-title reveal reveal-delay-1">技术架构</h2>
+    <p class="section-desc reveal reveal-delay-1">多模态数据融合 · 端到端智能推理 · 船岸一体化部署</p>
+    <div class="tech-grid">
+      <div class="tech-card reveal reveal-delay-1">
+        <h3>数字孪生引擎</h3>
+        <ul>
+          <li>MAN B&amp;W 12K98ME-C7 主机孪生模型</li>
+          <li>热力学实时仿真与参数辨识</li>
+          <li>三维可视化与交互式拆解视图</li>
+        </ul>
+      </div>
+      <div class="tech-card reveal reveal-delay-2">
+        <h3>AI 推理平台</h3>
+        <ul>
+          <li>大语言模型驱动的故障诊断 Agent</li>
+          <li>多模型集成推理（RAG + KG）</li>
+          <li>自适应阈值告警与异常检测</li>
+        </ul>
+      </div>
+      <div class="tech-card reveal reveal-delay-3">
+        <h3>数据基础设施</h3>
+        <ul>
+          <li>时序数据库（InfluxDB / TDengine）</li>
+          <li>MQTT 船岸数据同步总线</li>
+          <li>Gradio 可视化仪表盘</li>
+        </ul>
+      </div>
+      <div class="tech-card reveal reveal-delay-4">
+        <h3>部署与安全</h3>
+        <ul>
+          <li>船载边缘计算节点 + 岸端云端</li>
+          <li>TLS 1.3 加密通信链路</li>
+          <li>Docker 容器化一键部署</li>
+        </ul>
+      </div>
+    </div>
+    <div class="arch-diagram reveal reveal-delay-1" style="margin-top:32px;">
+      <div class="arch-row"><span class="arch-node dark">船舶传感器数据</span><span class="arch-arrow">&rarr;</span><span class="arch-node dark">边缘采集网关</span><span class="arch-arrow">&rarr;</span><span class="arch-node">MQTT / IoT Hub</span></div>
+      <div class="arch-row"><span class="arch-node">数字孪生引擎</span><span class="arch-arrow">&hArr;</span><span class="arch-node">AI 推理平台</span><span class="arch-arrow">&rarr;</span><span class="arch-node dark">Gradio 可视化面板</span></div>
+      <div class="arch-row"><span class="arch-node dark">时序数据库</span><span class="arch-arrow">&larr;</span><span class="arch-node dark">知识图谱</span><span class="arch-arrow">&larr;</span><span class="arch-node dark">LLM 推理服务</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="live">
+  <img class="live-bg" src="images/live_bg.png?v=2026073001" alt="" aria-hidden="true">
+  <div class="section-inner">
+    <div class="section-tag reveal">Live Feed</div>
+    <h2 class="section-title reveal reveal-delay-1">智能体实时数据传输</h2>
+    <p class="section-desc reveal reveal-delay-1">智能体持续从船端采集传感器数据，经边缘网关汇聚后实时推送至岸端推理平台，形成船岸一体的数据闭环。</p>
+    <div class="live-wrap reveal reveal-delay-2">
+      <video src="images/agent-live.mp4" autoplay loop muted playsinline preload="auto"></video>
+      <div class="live-badge"><span class="live-badge-dot"></span> Live</div>
+      <div class="live-cap">
+        <div class="live-cap-title">船岸数据实时回传</div>
+        <div class="live-cap-sub">200+ 传感器 · 毫秒级同步 · AI 实时分析</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="scenarios">
+  <img class="scenarios-bg" src="images/scenarios_bg.png?v=2026073001" alt="" aria-hidden="true">
+  <!-- 3D 鱼游动容器 -->
+  <div id="scenarios-fish-canvas"></div>
+  <div class="section-inner">
+    <div class="section-tag reveal">Applications</div>
+    <h2 class="section-title reveal reveal-delay-1">典型应用场景</h2>
+    <p class="section-desc reveal reveal-delay-1">覆盖远洋船舶轮机管理的全业务链路</p>
+    <div class="scenario-list">
+      <div class="scenario-item reveal reveal-delay-1">
+        <div class="scenario-img">
+          <img src="images/engineer-traditional.png" alt="航行中异常工况处置" loading="lazy">
+        </div>
+        <div class="scenario-num">01</div>
+        <div class="scenario-body">
+          <h4>航行中异常工况处置</h4>
+          <p>当主机排温偏差超过阈值时，系统自动触发诊断流程，结合历史案例库与实时参数推荐处置方案，辅助轮机长快速决策。</p>
+        </div>
+      </div>
+      <div class="scenario-item reveal reveal-delay-2">
+        <div class="scenario-img">
+          <img src="images/console.jpg" alt="坞修前技术评估" loading="lazy">
+        </div>
+        <div class="scenario-num">02</div>
+        <div class="scenario-body">
+          <h4>坞修前技术评估</h4>
+          <p>基于长期运行数据生成主机健康评估报告，量化缸套磨损趋势与活塞环寿命剩余，精准指导坞修范围与备件采购清单。</p>
+        </div>
+      </div>
+      <div class="scenario-item reveal reveal-delay-3">
+        <div class="scenario-img">
+          <img src="images/engineer-mobile.png" alt="岸端远程技术支持" loading="lazy">
+        </div>
+        <div class="scenario-num">03</div>
+        <div class="scenario-body">
+          <h4>岸端远程技术支持</h4>
+          <p>岸端专家通过数字孪生面板远程查看实时运行参数，结合 AI 预分析结果快速定位问题，减少靠港等待与专家差旅成本。</p>
+        </div>
+      </div>
+      <div class="scenario-item reveal reveal-delay-4">
+        <div class="scenario-img">
+          <img src="images/seaman-sea.png" alt="新船员培训与知识传承" loading="lazy">
+        </div>
+        <div class="scenario-num">04</div>
+        <div class="scenario-body">
+          <h4>新船员培训与知识传承</h4>
+          <p>利用知识引擎与交互式 3D 模型，为轮机部新船员提供沉浸式设备认知与应急操作模拟培训，降低上手门槛。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section cta-section" id="cta">
+  <video class="cta-video-bg" src="images/cta-ambient.mp4" autoplay loop muted playsinline preload="auto"></video>
+  <div class="cta-video-overlay"></div>
+  <div class="section-inner">
+    <div class="cta-card reveal">
+      <h2 class="section-title">立即体验智能运维</h2>
+      <p class="section-desc">点击下方按钮进入数字孪生与 AI 诊断演示面板</p>
+      <button class="btn btn-primary btn-lg" id="btnDemo2">进入演示面板</button>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <video class="footer-bg-video" src="C:/Users/小说加盐/Downloads/生成蓝色海水流动视频 (1).mp4" autoplay loop muted playsinline preload="auto"></video>
+  <div class="footer-inner">
+    <div class="footer-brand"><span class="footer-brand-icon">&#9875;</span>轮机智脑</div>
+    <ul class="footer-links">
+      <li><a href="#features">核心功能</a></li>
+      <li><a href="#tech">技术架构</a></li>
+      <li><a href="#scenarios">应用场景</a></li>
+    </ul>
+    <div class="footer-copy">Marine Engine AI &copy; 2026 &mdash; 远洋船舶轮机智能运维中枢</div>
+  </div>
+</footer>
+
+<!-- ====== Shark Mascot — floating companion ====== -->
+<div class="shark-mascot" id="sharkMascot" aria-hidden="true">
+  <img class="shark-mascot-img" src="images/shark.png" alt="小鲨">
+  <video class="shark-mascot-video" src="images/shark-shake.mp4" muted loop playsinline preload="none"></video>
+  <div class="shark-mascot-bubble">小鲨陪你 🌊</div>
+</div>
+
+<div class="transition-overlay" id="transitionOverlay">
+  <div class="logo-ring-wrap"><div class="logo-ring"></div><span class="logo-ring-anchor">&#9875;</span></div>
+  <div class="brand-text">Marine Engine AI</div>
+  <div class="dots-row" id="dotsRow">
+    <span class="dot-prog" data-idx="0"></span>
+    <span class="dot-prog" data-idx="1"></span>
+    <span class="dot-prog" data-idx="2"></span>
+  </div>
+  <div class="progress-text" id="progressText">正在建立安全连接&hellip;</div>
+  <div class="hull-info">12K98ME-C7 &middot; Hull 1957</div>
+</div>
+
+<!-- GSAP 动画工具库 - 仅引入不启用动画，后续逐步添加 -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>
+// 注册 ScrollTrigger 插件 - 完全按照GSAP官方技能文档实现
+gsap.registerPlugin(ScrollTrigger);
+
+// GSAP工具家族非常丰富，我们可以按需引入使用：
+// - ScrollSmoother: 丝滑滚动效果
+// - MotionPathPlugin: 元素沿路径运动
+// - TextPlugin: 文字逐字动画
+// - DrawSVGPlugin: SVG路径描边动画
+// - ScrollToPlugin: 平滑滚动定位
+// - 更多插件可以根据需求随时引入
+
+// 等所有资源（图片、视频）加载完成后再初始化动画，确保位置计算准确
+window.addEventListener('load', () => {
+  // 移除视差效果，修复图片显示不全问题
+
+  // ========== 2. 关于页面插画入场动效 ==========
+  // 左侧工程师（拿锤子的）：从左侧滑入
+  gsap.from('.about-engineer-hammer', {
+    scrollTrigger: {
+      trigger: '#about',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+      once: true
+    },
+    x: -80,
+    duration: 1.2,
+    ease: 'power3.out'
+  });
+
+  // 右侧工程师（思考的）：从右侧滑入，延迟0.3秒
+  gsap.from('.about-engineer-thinking', {
+    scrollTrigger: {
+      trigger: '#about',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+      once: true
+    },
+    x: 80,
+    duration: 1.2,
+    delay: 0.3,
+    ease: 'power3.out'
+  });
+
+  // 对话框：向上弹跳出现，延迟0.6秒
+  gsap.from('.about-speech-bubble', {
+    scrollTrigger: {
+      trigger: '#about',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+      once: true
+    },
+    y: -40,
+    scale: 0.8,
+    duration: 1,
+    delay: 0.6,
+    ease: 'back.out(2)'
+  });
+
+  // 按照官方文档要求，资源加载完成后强制刷新位置计算
+  ScrollTrigger.refresh();
+});
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  var canvas = document.getElementById('particle-canvas');
+  var ctx = canvas.getContext('2d');
+  var w, h;
+  var particles = [];
+  var bubbles = []; // 海洋气泡数组
+  var mouse = { x: -9999, y: -9999 };
+  var PARTICLE_COUNT = 120;
+  var BUBBLE_COUNT = 30; // 气泡数量
+
+  function resizeCanvas() {
+    w = canvas.width  = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+
+  function randomBetween(a, b) { return a + Math.random() * (b - a); }
+
+  function createParticle() {
+    return {
+      x: randomBetween(0, w),
+      y: randomBetween(0, h),
+      vx: randomBetween(-0.25, 0.25),
+      vy: randomBetween(-0.25, 0.25),
+      r: randomBetween(1.2, 2.8),
+      opacity: randomBetween(0.25, 0.7),
+      pulseSpeed: randomBetween(0.005, 0.02),
+      pulseOffset: Math.random() * Math.PI * 2,
+      hue: Math.random() < 0.25 ? 170 : 210
+    };
+  }
+
+  // 创建海洋气泡（和水泡泡光标同款样式）
+  function createBubble() {
+    return {
+      x: randomBetween(0, w),
+      y: randomBetween(0, h * 2), // 初始遍布整个页面高度
+      vy: randomBetween(0.5, 1.2), // 上升速度加快
+      vx: randomBetween(-0.3, 0.3), // 水平漂移
+      r: randomBetween(15, 45), // 气泡更大更明显
+      opacity: randomBetween(0.7, 0.95), // 更高透明度
+      rotation: randomBetween(0, 360),
+      rotationSpeed: randomBetween(-0.8, 0.8)
+    };
+  }
+
+  function initParticles() {
+    particles = [];
+    bubbles = [];
+    for (var i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push(createParticle());
+    }
+    // 初始化气泡
+    for (var i = 0; i < BUBBLE_COUNT; i++) {
+      bubbles.push(createBubble());
+    }
+  }
+
+  function drawParticles(timestamp) {
+    ctx.clearRect(0, 0, w, h);
+
+    var i, j, p, q, dx, dy, dist, alpha;
+
+
+    // 先绘制普通粒子
+    for (i = 0; i < particles.length; i++) {
+      p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < -20) p.x = w + 20;
+      if (p.x > w + 20) p.x = -20;
+      if (p.y < -20) p.y = h + 20;
+      if (p.y > h + 20) p.y = -20;
+
+      dx = mouse.x - p.x;
+      dy = mouse.y - p.y;
+      dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 150) {
+        var force = (1 - dist / 150) * 0.4;
+        p.vx -= (dx / dist) * force * 0.02;
+        p.vy -= (dy / dist) * force * 0.02;
+      }
+
+      var pulse = Math.sin(timestamp * p.pulseSpeed + p.pulseOffset) * 0.3 + 0.7;
+      var alpha = p.opacity * pulse;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.hue === 170
+        ? 'rgba(0, 191, 165, ' + alpha + ')'
+        : 'rgba(100, 180, 220, ' + (alpha * 0.8) + ')';
+      ctx.fill();
+    }
+
+    for (i = 0; i < particles.length; i++) {
+      p = particles[i];
+      for (j = i + 1; j < particles.length; j++) {
+        q = particles[j];
+        dx = p.x - q.x;
+        dy = p.y - q.y;
+        dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+          alpha = (1 - dist / 120) * 0.12;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(q.x, q.y);
+          ctx.strokeStyle = 'rgba(0, 191, 165, ' + alpha + ')';
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 绘制气泡（在普通粒子之上，更明显）
+    for (i = 0; i < bubbles.length; i++) {
+      var b = bubbles[i];
+      b.y -= b.vy;
+      b.x += b.vx;
+      b.rotation += b.rotationSpeed;
+      
+      // 气泡飘出顶部后重置到下方
+      if (b.y < -b.r * 2) {
+        Object.assign(b, createBubble());
+        b.y = h + 50;
+      }
+      
+      // 绘制气泡渐变
+      var bubbleGradient = ctx.createRadialGradient(
+        b.x - b.r * 0.3, b.y - b.r * 0.3, 0,
+        b.x, b.y, b.r
+      );
+      bubbleGradient.addColorStop(0, 'rgba(255, 255, 255, ' + (b.opacity * 0.9) + ')');
+      bubbleGradient.addColorStop(0.3, 'rgba(170, 230, 255, ' + (b.opacity * 0.7) + ')');
+      bubbleGradient.addColorStop(0.7, 'rgba(22, 93, 255, ' + (b.opacity * 0.3) + ')');
+      bubbleGradient.addColorStop(1, 'rgba(125, 227, 214, ' + (b.opacity * 0.2) + ')');
+      
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.rotation * Math.PI / 180);
+      ctx.translate(-b.x, -b.y);
+      
+      // 气泡主体
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = bubbleGradient;
+      ctx.fill();
+      
+      // 气泡边框
+      ctx.strokeStyle = 'rgba(255, 255, 255, ' + (b.opacity * 0.6) + ')';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // 气泡内阴影
+      ctx.globalCompositeOperation = 'source-atop';
+      var innerShadow = ctx.createRadialGradient(
+        b.x, b.y, b.r * 0.8,
+        b.x, b.y, b.r
+      );
+      innerShadow.addColorStop(0, 'transparent');
+      innerShadow.addColorStop(1, 'rgba(22, 93, 255, ' + (b.opacity * 0.2) + ')');
+      ctx.fillStyle = innerShadow;
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      
+      // 气泡高光
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + (b.opacity * 0.9) + ')';
+      ctx.beginPath();
+      ctx.ellipse(
+        b.x - b.r * 0.25, 
+        b.y - b.r * 0.3, 
+        b.r * 0.25, 
+        b.r * 0.12, 
+        0, 0, Math.PI * 2
+      );
+      ctx.fill();
+      
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + (b.opacity * 0.7) + ')';
+      ctx.beginPath();
+      ctx.ellipse(
+        b.x - b.r * 0.12, 
+        b.y - b.r * 0.15, 
+        b.r * 0.12, 
+        b.r * 0.08, 
+        0, 0, Math.PI * 2
+      );
+      ctx.fill();
+      
+      ctx.restore();
+    }
+
+    // 绘制普通粒子
+    for (i = 0; i < particles.length; i++) {
+      p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < -20) p.x = w + 20;
+      if (p.x > w + 20) p.x = -20;
+      if (p.y < -20) p.y = h + 20;
+      if (p.y > h + 20) p.y = -20;
+
+      dx = mouse.x - p.x;
+      dy = mouse.y - p.y;
+      dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 150) {
+        var force = (1 - dist / 150) * 0.4;
+        p.vx -= (dx / dist) * force * 0.02;
+        p.vy -= (dy / dist) * force * 0.02;
+      }
+
+      var pulse = Math.sin(timestamp * p.pulseSpeed + p.pulseOffset) * 0.3 + 0.7;
+      var alpha = p.opacity * pulse;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.hue === 170
+        ? 'rgba(0, 191, 165, ' + alpha + ')'
+        : 'rgba(100, 180, 220, ' + (alpha * 0.8) + ')';
+      ctx.fill();
+    }
+
+    for (i = 0; i < particles.length; i++) {
+      p = particles[i];
+      for (j = i + 1; j < particles.length; j++) {
+        q = particles[j];
+        dx = p.x - q.x;
+        dy = p.y - q.y;
+        dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+          alpha = (1 - dist / 120) * 0.12;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(q.x, q.y);
+          ctx.strokeStyle = 'rgba(0, 191, 165, ' + alpha + ')';
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    if (mouse.x > 0 && mouse.y > 0) {
+      var glow = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 120);
+      glow.addColorStop(0, 'rgba(0, 191, 165, 0.08)');
+      glow.addColorStop(1, 'rgba(0, 191, 165, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(mouse.x - 120, mouse.y - 120, 240, 240);
+    }
+  }
+
+  function animateParticles(timestamp) {
+    drawParticles(timestamp);
+    requestAnimationFrame(animateParticles);
+  }
+
+  document.addEventListener('mousemove', function (e) {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  });
+
+  resizeCanvas();
+  initParticles();
+  requestAnimationFrame(animateParticles);
+  window.addEventListener('resize', function () {
+    resizeCanvas();
+    initParticles();
+  });
+
+  var reveals = document.querySelectorAll('.reveal');
+  var revealObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+  reveals.forEach(function (el) { revealObserver.observe(el); });
+
+  var topNav = document.getElementById('topNav');
+  var navLinks = topNav.querySelectorAll('.nav-links a');
+
+  var sections = [];
+  var sideDots = document.getElementById('sideDots').querySelectorAll('.side-dot');
+  var allNavLinks = document.querySelectorAll('.nav-links a');
+
+  allNavLinks.forEach(function (link) {
+    var secId = link.getAttribute('data-section');
+    if (secId && sections.indexOf(secId) === -1) {
+      sections.push(secId);
+    }
+  });
+
+  function updateActiveSection() {
+    var scrollY = window.scrollY || window.pageYOffset;
+    var windowH = window.innerHeight;
+    var activeId = sections[0];
+
+    if (scrollY > 80) {
+      topNav.classList.add('scrolled');
+    } else {
+      topNav.classList.remove('scrolled');
+    }
+
+    for (var i = sections.length - 1; i >= 0; i--) {
+      var el = document.getElementById(sections[i]);
+      if (!el) continue;
+      var rect = el.getBoundingClientRect();
+      if (rect.top <= windowH * 0.45) {
+        activeId = sections[i];
+        break;
+      }
+    }
+
+    allNavLinks.forEach(function (link) {
+      link.classList.remove('active');
+      if (link.getAttribute('data-section') === activeId) {
+        link.classList.add('active');
+      }
+    });
+
+    sideDots.forEach(function (dot) {
+      dot.classList.remove('active');
+      if (dot.getAttribute('data-section') === activeId) {
+        dot.classList.add('active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', updateActiveSection, { passive: true });
+  updateActiveSection();
+
+  var overlay   = document.getElementById('transitionOverlay');
+  var dotsRow   = document.getElementById('dotsRow');
+  var progDots  = dotsRow.querySelectorAll('.dot-prog');
+  var progText  = document.getElementById('progressText');
+  var TEXT_SEQUENCE = [
+    { at: 1050, text: '正在建立安全连接&hellip;' },
+    { at: 1350, text: '加载知识库&hellip;' },
+    { at: 1650, text: '启动监控面板&hellip;' }
+  ];
+  var DOT_TIMINGS   = [1050, 1350, 1650];
+  var EXIT_AT       = 1800;
+  var REDIRECT_AT   = 2000;
+  var rafId = null, textIdx = 0, dotIdx = 0, exited = false, redirected = false;
+
+  function resetOverlay() {
+    for (var i = 0; i < progDots.length; i++) { progDots[i].classList.remove('lit'); }
+    progText.textContent = TEXT_SEQUENCE[0].text;
+    textIdx = 0; dotIdx = 0; exited = false; redirected = false;
+    overlay.classList.remove('active', 'exiting');
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  function triggerDemo() {
+    resetOverlay();
+    void overlay.offsetWidth;
+    var startTime = performance.now();
+    overlay.classList.add('active');
+    function tick() {
+      var elapsed = performance.now() - startTime;
+      while (dotIdx < DOT_TIMINGS.length && elapsed >= DOT_TIMINGS[dotIdx]) {
+        progDots[dotIdx].classList.add('lit');
+        dotIdx++;
+      }
+      while (textIdx < TEXT_SEQUENCE.length && elapsed >= TEXT_SEQUENCE[textIdx].at) {
+        progText.textContent = TEXT_SEQUENCE[textIdx].text;
+        textIdx++;
+      }
+      if (!exited && elapsed >= EXIT_AT) {
+        exited = true;
+        overlay.classList.add('exiting');
+      }
+      if (!redirected && elapsed >= REDIRECT_AT) {
+        redirected = true;
+        // 公网无本地 Gradio 后端，改为平滑滚动到 3D 鱼演示区（#scenarios），避免 file:// 弹窗报错
+        var scenariosEl = document.getElementById('scenarios');
+        if (scenariosEl) { scenariosEl.scrollIntoView({ behavior: 'smooth' }); }
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        setTimeout(function () { resetOverlay(); }, 300);
+        return;
+      }
+      rafId = requestAnimationFrame(tick);
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  document.getElementById('btnDemo').addEventListener('click', triggerDemo);
+  document.getElementById('btnDemo2').addEventListener('click', triggerDemo);
+
+  // ====== Shark Mascot interaction ======
+  var sharkMascot = document.getElementById('sharkMascot');
+  if (sharkMascot) {
+    var sharkVideo = sharkMascot.querySelector('.shark-mascot-video');
+    var sharkLoaded = false;
+    function ensureSharkLoaded() {
+      if (!sharkLoaded) { sharkVideo.load(); sharkLoaded = true; }
+    }
+    sharkMascot.addEventListener('mouseenter', function () {
+      ensureSharkLoaded();
+      sharkVideo.play().catch(function () {});
+    });
+    sharkMascot.addEventListener('mouseleave', function () {
+      sharkVideo.pause();
+      sharkVideo.currentTime = 0;
+    });
+    sharkMascot.addEventListener('click', function () {
+      ensureSharkLoaded();
+      sharkVideo.play().catch(function () {});
+    });
+  }
+
+})();
+</script>
+<script>
+// 悬停静止交互
+const scenarioList = document.querySelector('.scenario-list');
+const scenarioItems = document.querySelectorAll('.scenario-item');
+
+// 暂停所有动画
+function pauseAll() {
+  scenarioItems.forEach(item => {
+    item.style.animationPlayState = 'paused';
+  });
+}
+
+// 恢复所有动画
+function resumeAll() {
+  scenarioItems.forEach(item => {
+    item.style.animationPlayState = 'running';
+  });
+}
+
+// 悬停时直接静止，不移动位置
+scenarioItems.forEach(item => {
+  item.addEventListener('mouseenter', pauseAll);
+  item.addEventListener('mouseleave', resumeAll);
+});
+
+// 离开整个容器时恢复
+scenarioList.addEventListener('mouseleave', resumeAll);
+</script>
+
+<!-- GSAP + ScrollTrigger for Robot Mascot Interactivity -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+// 自定义鼠标光标 - 3D水泡泡主题版
+const cursorBubble = document.querySelector('.cursor-bubble');
+const rippleContainer = document.getElementById('cursorRippleContainer');
+const trailContainer = document.getElementById('cursorTrailContainer');
+
+let mouseX = 0;
+let mouseY = 0;
+let bubbleX = 0;
+let bubbleY = 0;
+let lastTrailTime = 0;
+const maxTrails = 8;
+let trailCount = 0;
+
+// 鼠标移动事件
+document.addEventListener('mousemove', (e) => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+  
+  // 生成拖尾小气泡，每40ms一个
+  const now = Date.now();
+  if (now - lastTrailTime > 40 && trailCount < maxTrails) {
+    createTrail(mouseX, mouseY);
+    lastTrailTime = now;
+  }
+});
+
+// 水泡泡平滑跟随动画
+function animateCursor() {
+  bubbleX += (mouseX - bubbleX) * 0.15;
+  bubbleY += (mouseY - bubbleY) * 0.15;
+  
+  gsap.set(cursorBubble, {
+    x: bubbleX - 24,
+    y: bubbleY - 24
+  });
+  
+  requestAnimationFrame(animateCursor);
+}
+animateCursor();
+
+// 创建点击水波纹效果
+function createRipple(x, y) {
+  const ripple = document.createElement('div');
+  ripple.className = 'cursor-ripple';
+  ripple.style.left = x - 30 + 'px';
+  ripple.style.top = y - 30 + 'px';
+  ripple.style.width = 60 + 'px';
+  ripple.style.height = 60 + 'px';
+  rippleContainer.appendChild(ripple);
+  
+  setTimeout(() => ripple.remove(), 600);
+}
+
+// 创建拖尾小气泡
+function createTrail(x, y) {
+  const trail = document.createElement('div');
+  trail.className = 'cursor-trail';
+  trail.style.left = x - 6 + 'px';
+  trail.style.top = y - 6 + 'px';
+  trailContainer.appendChild(trail);
+  trailCount++;
+  
+  setTimeout(() => {
+    trail.remove();
+    trailCount--;
+  }, 800);
+}
+
+// 点击效果
+document.addEventListener('mousedown', (e) => {
+  createRipple(e.clientX, e.clientY);
+  gsap.to(cursorBubble, {
+    scale: 0.85,
+    duration: 0.15,
+    ease: 'power2.out'
+  });
+});
+
+document.addEventListener('mouseup', () => {
+  gsap.to(cursorBubble, {
+    scale: 1,
+    duration: 0.2,
+    ease: 'back.out(2)'
+  });
+});
+
+// 悬停交互元素时光标效果
+const hoverElements = document.querySelectorAll('a, button, .btn, .feature-card, .stat-item, .scenario-card, [role="button"]');
+hoverElements.forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursorBubble.classList.add('hover');
+  });
+  
+  el.addEventListener('mouseleave', () => {
+    cursorBubble.classList.remove('hover');
+  });
+});
+
+// 页面隐藏时暂停动画，节省性能
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    gsap.globalTimeline.pause();
+  } else {
+    gsap.globalTimeline.resume();
+  }
+});
+
+
+// 元素悬停交互效果
+document.addEventListener('DOMContentLoaded', () => {
+  // 功能卡片悬停效果
+  const featureCards = document.querySelectorAll('.feature-card');
+  featureCards.forEach(card => {
+    card.addEventListener('mouseenter', () => {
+      gsap.to(card, {
+        y: -8,
+        boxShadow: '0 20px 40px rgba(22, 93, 255, 0.15)',
+        scale: 1.02,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+    });
+    
+    card.addEventListener('mouseleave', () => {
+      gsap.to(card, {
+        y: 0,
+        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        scale: 1,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+    });
+  });
+
+  // 统计卡片使用原生CSS 3D翻转效果，移除JS动画避免冲突
+
+  // 场景卡片悬停效果
+  const scenarioCards = document.querySelectorAll('.scenario-card');
+  scenarioCards.forEach(card => {
+    card.addEventListener('mouseenter', () => {
+      gsap.to(card, {
+        y: -10,
+        boxShadow: '0 25px 50px rgba(22, 93, 255, 0.2)',
+        duration: 0.35,
+        ease: 'back.out(1.7)'
+      });
+      
+      gsap.to(card.querySelector('.scenario-img'), {
+        scale: 1.05,
+        duration: 0.35,
+        ease: 'power2.out'
+      });
+    });
+    
+    card.addEventListener('mouseleave', () => {
+      gsap.to(card, {
+        y: 0,
+        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        duration: 0.35,
+        ease: 'power2.out'
+      });
+      
+      gsap.to(card.querySelector('.scenario-img'), {
+        scale: 1,
+        duration: 0.35,
+        ease: 'power2.out'
+      });
+    });
+  });
+
+  // 按钮悬停效果
+  const buttons = document.querySelectorAll('.btn');
+  buttons.forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      gsap.to(btn, {
+        y: -2,
+        boxShadow: '0 8px 20px rgba(22, 93, 255, 0.3)',
+        duration: 0.2,
+        ease: 'power2.out'
+      });
+    });
+    
+    btn.addEventListener('mouseleave', () => {
+      gsap.to(btn, {
+        y: 0,
+        boxShadow: '0 4px 12px rgba(22, 93, 255, 0.2)',
+        duration: 0.2,
+        ease: 'power2.out'
+      });
+    });
+  });
+});
+</script>
+<script>
+(function() {
+  'use strict';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const mascot = document.querySelector('.robot-mascot');
+  if (!mascot) return;
+
+  // ── 1. Idle breathing float animation ──
+  gsap.to(mascot, {
+    y: -10,
+    rotation: 1.5,
+    duration: 2.5,
+    ease: 'sine.inOut',
+    yoyo: true,
+    repeat: -1,
+    delay: 0.3
+  });
+
+  // ── 2. 移除鼠标跟随效果，保持固定位置 ──
+
+  // ── 3. Scroll-triggered reactions ──
+  // When mascot enters viewport, do a cute entrance
+  ScrollTrigger.create({
+    trigger: mascot,
+    start: 'top 85%',
+    once: true,
+    onEnter: () => {
+      gsap.fromTo(mascot,
+        { y: 40, opacity: 0, scale: 0.6, rotation: -8 },
+        {
+          y: 0, opacity: 1, scale: 1, rotation: 0,
+          duration: 1,
+          ease: 'elastic.out(1, 0.5)'
+        }
+      );
+      // Brief excited bounce after entrance
+      setTimeout(() => {
+        mascot.classList.add('mascot-excited');
+        setTimeout(() => mascot.classList.remove('mascot-excited'), 400);
+      }, 1100);
+    }
+  });
+
+  // Look at user when scrolling past different sections
+  ScrollTrigger.create({
+    trigger: '.feature-grid',
+    start: 'top center',
+    end: 'bottom center',
+    onUpdate: (self) => {
+      const progress = self.progress;
+      // Subtle tilt based on scroll progress through cards
+      const tilt = (progress - 0.5) * 8; // -4deg to +4deg
+      gsap.to(mascot, { rotation: tilt, duration: 0.4, overwrite: true });
+    }
+  });
+
+  // ── 4. Click interaction ──
+  mascot.addEventListener('click', function(e) {
+    e.preventDefault();
+    // Excited bounce sequence
+    this.classList.add('mascot-excited');
+    gsap.timeline()
+      .to(this, { scaleY: 0.9, scaleX: 1.1, duration: 0.08 })
+      .to(this, { scaleY: 1.15, scaleX: 0.92, duration: 0.1 })
+      .to(this, { scale: 1, duration: 0.25, ease: 'elastic.out(1, 0.4)' });
+    setTimeout(() => this.classList.remove('mascot-excited'), 400);
+  });
+
+  // ── 5. Occasional blink / attention grab (random idle) ──
+  function randomIdleAction() {
+    const actions = [
+      // Slight head tilt
+      () => gsap.to(mascot, { rotation: '+=4', duration: 0.6, yoyo: true, repeat: 1 }),
+      // Quick peek up
+      () => gsap.to(mascot, { y: '-=18', duration: 0.35, yoyo: true, repeat: 1 }),
+      // Gentle sway
+      () => gsap.to(mascot, { x: '+=8', duration: 0.8, yoyo: true, repeat: 1, ease: 'sine.inOut' }),
+    ];
+    const action = actions[Math.floor(Math.random() * actions.length)];
+    action();
+    // Schedule next random action between 4-8 seconds
+    setTimeout(randomIdleAction, 4000 + Math.random() * 4000);
+  }
+  // Start random idles after a delay
+  setTimeout(randomIdleAction, 5000);
+
+})();
+</script>
+
+<!-- 本地 Three.js (r128 UMD)，用于 #about 板块的 3D 鱼 -->
+<script src="libs/three.min.js"></script>
+<script src="libs/GLTFLoader.js"></script>
+<script src="fish_data.js"></script>
+
+<script>
+// #scenarios 板块：3D 鱼游动场景
+(function() {
+  if (typeof THREE === 'undefined' || typeof THREE.GLTFLoader === 'undefined') {
+    console.warn('Three.js / GLTFLoader 未加载，跳过 3D 鱼');
+    return;
+  }
+  const container = document.getElementById('scenarios-fish-canvas');
+  if (!container) return;
+
+  const W = () => container.clientWidth || 800;
+  const H = () => container.clientHeight || 300;
+
+  const scene = new THREE.Scene();
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
+
+  // 透视相机：正面对着鱼，视角适配场景板块宽高
+  const camera = new THREE.PerspectiveCamera(45, W() / H(), 0.1, 100);
+  camera.position.set(0, 0.3, 10);
+  camera.lookAt(0, 0, 0);
+
+  // 光照：适配场景板块的明亮海洋背景，增强鱼的可见度
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x4a6b8a, 1.6));
+  const key = new THREE.DirectionalLight(0xffffff, 2.6);
+  key.position.set(3, 4, 5); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffd7a8, 1.1);
+  fill.position.set(-3, -1, 2); scene.add(fill);
+  const back = new THREE.DirectionalLight(0x9fd8ff, 1.0);
+  back.position.set(0, 2, -4); scene.add(back);
+
+  const group = new THREE.Group();
+  scene.add(group);
+
+  const fishStates = [];   // 每条鱼独立状态（mesh + 动画参数）
+
+  // 暴露调试对象仅在本地开发时使用
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    window.__fishDebug = { scene, camera, renderer, group, container, fishStates };
+  }
+
+  function resize() {
+    renderer.setSize(W(), H(), false);
+    camera.aspect = W() / H();
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // 加载鱼（克隆两条，各自独立状态）
+  const fishConfigs = [
+    { yOffset:  1.10, xOffset:  0.30, patrol: 4.80, speed: 0.55, phaseOffset: 0.00, swirlT0: 0.0 },
+    { yOffset:  0.20, xOffset:  0.70, patrol: 4.50, speed: 0.62, phaseOffset: 0.50, swirlT0: 1.6 },
+  ];
+
+  const loader = new THREE.GLTFLoader();
+
+  // base64 -> ArrayBuffer（用于内联模型，避免 file:// 下 fetch 本地文件被拦截）
+  function b64ToArrayBuffer(b64) {
+    const bin = atob(b64);
+    const len = bin.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  function buildFishFromGLTF(gltf) {
+    const fish = gltf.scene;
+    // 归一化尺寸
+    const box = new THREE.Box3().setFromObject(fish);
+    const size = new THREE.Vector3(); box.getSize(size);
+    const scale = 2.8 / Math.max(size.x, size.y, size.z);
+    fish.scale.setScalar(scale);
+
+    // 克隆一条鱼并应用材质，加入 group 和 fishStates
+    function spawnFish(mat, cfg) {
+      const inst = fish.clone(true);
+      inst.traverse(function(c) {
+        if (c.isMesh) {
+          if (c.geometry && !c.geometry.attributes.normal) c.geometry.computeVertexNormals();
+          c.material = mat;
+          c.frustumCulled = false;
+        }
+      });
+      group.add(inst);
+      fishStates.push({
+        mesh: inst,
+        heading: HEAD_RIGHT,
+        swirlT: cfg.swirlT0,
+        speed: cfg.speed,
+        patrol: cfg.patrol,
+        yOffset: cfg.yOffset,
+        xOffset: cfg.xOffset || 0,
+        phaseOffset: cfg.phaseOffset,
+      });
+    }
+    function finalizeAll(mat) {
+      fishConfigs.forEach(function(cfg) { spawnFish(mat, cfg); });
+      console.log('3D 鱼已加载 ×' + fishStates.length, size);
+    }
+
+    // 贴图：优先用内联 base64（file:// 也能显示），否则回退到文件
+    function applyTex(map) {
+      if (map) map.encoding = THREE.sRGBEncoding;
+      const mat = new THREE.MeshPhongMaterial({
+        map: map || null,
+        color: 0xf0f0f0,
+        side: THREE.DoubleSide,
+        shininess: 35,
+        specular: 0x223344,
+      });
+      finalizeAll(mat);
+    }
+    if (window.FISH_TEX_B64) {
+      applyTex(new THREE.TextureLoader().load('data:image/png;base64,' + window.FISH_TEX_B64));
+    } else {
+      new THREE.TextureLoader().load(
+        'images/models/fish/texture_pbr_20250901.png',
+        applyTex,
+        undefined,
+        function() { applyTex(null); }   // 无贴图兜底
+      );
+    }
+  }
+
+  // 加载模型：内联数据优先（file:// 与 http 通吃），缺失时回退到文件 fetch
+  if (window.FISH_GLB_B64) {
+    loader.parse(b64ToArrayBuffer(window.FISH_GLB_B64), '', buildFishFromGLTF, function(err) {
+      console.error('内联 GLB 解析失败', err);
+    });
+  } else {
+    loader.load('images/models/fish/fish.glb', buildFishFromGLTF, undefined, function(err) {
+      console.error('鱼 GLB 加载失败', err);
+    });
+  }
+
+  // 视口外暂停
+  let running = true;
+  const io = new IntersectionObserver(function(entries) {
+    running = entries[0].isIntersecting;
+  }, { threshold: 0.05 });
+  io.observe(container);
+
+  // 游动动画（每条鱼独立状态）
+  const clock = new THREE.Clock();
+  // 模型长轴沿 +Z（头朝 +Z）。要呈现侧视图，把长轴转到世界 +X/-X：
+  const HEAD_RIGHT = Math.PI / 2;   // 头(+Z) → +X，朝右游
+  const HEAD_LEFT  = -Math.PI / 2;  // 头(+Z) → -X，朝左游
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(0.05, clock.getDelta());
+    if (running && fishStates.length > 0) {
+      for (let i = 0; i < fishStates.length; i++) {
+        const inst = fishStates[i];
+        const fish = inst.mesh;
+        inst.swirlT += dt;
+        const phase = inst.swirlT * inst.speed + inst.phaseOffset;
+        const vx = Math.cos(phase);                              // 横向速度符号（端点自然趋零）
+        // 目标朝向：面向行进方向（侧视）
+        const targetHeading = vx >= 0 ? HEAD_RIGHT : HEAD_LEFT;
+        // 平滑转身（帧率无关），避免端点瞬间 180° 翻转
+        const k = 1 - Math.pow(0.0008, dt);
+        inst.heading += (targetHeading - inst.heading) * Math.min(1, k * 1.8);
+        const turning = Math.abs(targetHeading - inst.heading);   // 0..π，转身进行中
+        const activity = 0.45 + 0.55 * Math.abs(vx);             // 游得越快摆动越强
+        // 水平游动（正弦，端点缓动）+ 多频上下编织，打破机械感
+        const baseY = Math.sin(phase * 1.7) * 0.45 + Math.sin(phase * 0.6 + 1.3) * 0.22;
+        fish.position.x = inst.xOffset + Math.sin(phase) * inst.patrol;
+        fish.position.y = inst.yOffset + baseY - Math.sin(turning) * 0.22; // 转身时轻微下潜
+        // 身体摆动：尾鳍摆动 + 轻微侧倾/俯仰
+        const wag = Math.sin(inst.swirlT * 6.2);
+        fish.rotation.y = inst.heading + wag * 0.11 * activity;
+        fish.rotation.z = Math.sin(inst.swirlT * 3.1 + 0.5) * 0.05 * activity + Math.sin(turning) * 0.45;
+        fish.rotation.x = Math.sin(inst.swirlT * 2.3) * 0.03;
+      }
+    }
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+</script>
+
+<!-- 海洋气泡特效容器 -->
+<div id="bubbles-container"></div>
+
+<script>
+// 海洋气泡上升特效
+class OceanBubbles {
+  constructor() {
+    this.container = document.getElementById('bubbles-container');
+    this.bubbles = [];
+    this.maxBubbles = 15; // 同时存在的最大气泡数量
+    this.bubbleCount = 0;
+    
+    this.init();
+  }
+  
+  init() {
+    // 初始创建一批气泡
+    for (let i = 0; i < this.maxBubbles; i++) {
+      setTimeout(() => this.createBubble(), i * 800);
+    }
+    
+    // 定时补充新气泡
+    setInterval(() => {
+      if (this.bubbleCount < this.maxBubbles) {
+        this.createBubble();
+      }
+    }, 1000);
+  }
+  
+  createBubble() {
+    this.bubbleCount++;
+    
+    const bubble = document.createElement('div');
+    bubble.className = 'ocean-bubble';
+    
+    // 随机大小（15px - 45px）
+    const size = Math.random() * 30 + 15;
+    bubble.style.width = `${size}px`;
+    bubble.style.height = `${size}px`;
+    
+    // 随机水平位置
+    const x = Math.random() * window.innerWidth;
+    bubble.style.left = `${x}px`;
+    
+    // 初始位置在视口下方
+    bubble.style.bottom = `-${size}px`;
+    
+    // 随机透明度
+    const opacity = Math.random() * 0.25 + 0.7;
+    bubble.style.opacity = opacity;
+    
+    this.container.appendChild(bubble);
+    
+    // GSAP上升动画
+    const riseDuration = Math.random() * 15 + 10; // 10-25秒上升时间
+    const horizontalDrift = (Math.random() - 0.5) * 200; // 左右漂移幅度
+    
+    gsap.to(bubble, {
+      y: -window.innerHeight - 100,
+      x: `+=${horizontalDrift}`,
+      rotation: Math.random() * 360,
+      duration: riseDuration,
+      ease: "power1.inOut",
+      onComplete: () => {
+        bubble.remove();
+        this.bubbleCount--;
+      }
+    });
+    
+    // 随机摇摆效果
+    gsap.to(bubble, {
+      x: `+=${(Math.random() - 0.5) * 30}`,
+      duration: Math.random() * 3 + 2,
+      repeat: -1,
+      yoyo: true,
+      ease: "sine.inOut"
+    });
+  }
+}
+
+// 页面加载完成后初始化气泡特效
+window.addEventListener('load', () => {
+  new OceanBubbles();
+});
+</script>
+</body>
+</html>

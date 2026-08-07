@@ -22,20 +22,15 @@ WORKDIR /app
 
 # ---------- 应用代码 ----------
 COPY requirements.txt ./
-COPY app/ ./
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
+COPY public/ ./public/
+COPY serve.py ./
 
 # ---------- Python 依赖 ----------
 RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
-# ---------- Playwright + Chromium + 系统依赖 ----------
-# 用 install --with-deps 一次性让 Playwright 装齐所有系统库（libgtk-3-0, libgdk-pixbuf-2.0-0 等）
-# 之前手动 apt-get 装的 libnss3 那批可能漏了 libgtk，导致 chromium 启动崩溃
-RUN python3 -m playwright install --with-deps chromium
+# ---------- 纯静态托管 ----------
+# 站点资源已在 public/，serve.py 用 FastAPI StaticFiles 直接托管，无需 Gradio/Playwright 等重依赖。
+# Render 注入 PORT 环境变量，uvicorn 绑定 0.0.0.0:$PORT。
+EXPOSE 8080
 
-# Render 会注入 PORT（默认 10000）。api_server 读 PORT 后 uvicorn 直接绑它。
-# 我们不再走 nginx，所以没有端口 redirect 问题，也不需要 envsubst。
-EXPOSE 10000
-
-CMD ["/start.sh"]
+CMD ["sh", "-c", "uvicorn serve:app --host 0.0.0.0 --port ${PORT:-8080}"]

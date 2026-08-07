@@ -1,7 +1,2 @@
 fastapi
 uvicorn[standard]
-gradio==6.20.0
-openai
-plotly
-playwright
-httpx
