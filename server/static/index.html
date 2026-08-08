@@ -3465,7 +3465,7 @@ img {
     </p>
     <div class="hero-buttons reveal reveal-delay-3">
       <button class="btn btn-primary btn-lg" id="btnDemo">开始演示</button>
-      <a href="https://lunji-zhinao-server.onrender.com/history" class="btn btn-outline">历史数据</a>
+      <a href="/history" class="btn btn-outline">历史数据</a>
     </div>
     <div class="hero-meta-row reveal reveal-delay-4">
       <div class="hero-meta">
@@ -4316,7 +4316,7 @@ window.addEventListener('load', () => {
       }
       if (!redirected && elapsed >= REDIRECT_AT) {
         redirected = true;
-        window.open('https://lunji-zhinao-server.onrender.com/', '_blank');
+        window.open('/portal', '_blank');
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         setTimeout(function () { resetOverlay(); }, 300);
         return;

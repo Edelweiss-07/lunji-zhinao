@@ -292,17 +292,35 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+    # 着陆页资源（相对路径 images/ libs/ 及根级文件 → 挂到根路径，与 index.html 相对引用对应）
+    for _sub in ("images", "libs"):
+        _d = static_dir / _sub
+        if _d.exists():
+            app.mount(f"/{_sub}", StaticFiles(directory=str(_d)), name=f"site-{_sub}")
+    for _f in ("fish_data.js", "ocean_background.mp4", "footer_sea.mp4", "favicon.svg", "icons.svg"):
+        _fp = static_dir / _f
+        if _fp.exists():
+            app.get(f"/{_f}")(
+                lambda _fp=_fp: FileResponse(str(_fp), headers={"Cache-Control": "no-cache"})
+            )
+
 
 @app.get("/")
-async def serve_gateway():
+async def serve_landing():
+    """Serve the marketing landing page（海洋主题着陆页 index.html，同本地首页）。"""
+    idx = static_dir / "index.html"
+    if idx.exists():
+        return FileResponse(str(idx), headers={"Cache-Control": "no-cache"})
+    return {"message": "Marine Engine AI API", "docs": "/docs"}
+
+
+@app.get("/portal")
+async def serve_portal():
     """Serve the Gradio portal shell (tabs + iframe → /app/)."""
     portal = static_dir / "portal.html"
     if portal.exists():
         return FileResponse(str(portal), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
-    hist = static_dir / "history.html"
-    if hist.exists():
-        return FileResponse(str(hist), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
-    return {"message": "Marine Engine AI API", "docs": "/docs"}
+    return {"message": "Portal not found — check static/ dir"}
 
 
 @app.get("/dashboard")

@@ -1,8 +1,12 @@
-# Render Blueprint — 轮机智脑
-# 一键创建两个服务：静态门户站 + 合并 Web 服务（Gradio + 历史数据 API）
-# 用法：Render Dashboard → New → Blueprint → 选择本仓库
+# Render Blueprint — 轮机智脑（单服务方案）
+# 一个 Web 服务承载全部功能：
+#   /        着陆页 index.html（海洋主题门户，同本地首页）
+#   /portal  监控台外壳（标签导航 + iframe → /app）
+#   /app     Gradio 主应用（总览/监控/视觉识别/数据历史）
+#   /history 历史数据页
+#   /api/*   数据接口
+# 用法：Render Dashboard → New → Blueprint → 选择本仓库（或手动 New Web Service）
 services:
-  # ── Web 服务：FastAPI 装配（/ 门户壳、/app Gradio、/history 历史页、/api/* 数据接口）
   - type: web
     name: lunji-zhinao-server
     runtime: python
@@ -23,8 +27,3 @@ services:
         sync: false
       - key: DSR1_API_KEY
         sync: false
-
-  # ── 静态站：门户着陆页（CDN 分发，不休眠）
-  - type: static
-    name: lunji-zhinao-portal
-    staticPublishPath: site
