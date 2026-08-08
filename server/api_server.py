@@ -241,8 +241,8 @@ async def load_history(filename: str = "", file: str = Query(default="")):
                             pass
             data["points"] = pts
         # Inject KB baselines for params present in points (for radar/heatmap)
+        # KB_BASELINE already imported from visualizer_core at module top
         if data.get("points") and not data.get("kb_baselines"):
-            from visualizer import KB_BASELINE
             data["kb_baselines"] = {
                 p["param"]: KB_BASELINE[p["param"]]
                 for p in data["points"]
