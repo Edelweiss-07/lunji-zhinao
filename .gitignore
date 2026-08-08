@@ -1,5 +1,5 @@
-__pycache__/
-*.py[cod]
-.DS_Store
-*.log
-.env
+app/
+public/fish_data.js
+public/images/
+cloudflared.exe
+*.bak
