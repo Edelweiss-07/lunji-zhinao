@@ -22,7 +22,9 @@ import gradio as gr
 import uvicorn
 
 from api_server import app                # FastAPI：API 路由 + /static + / + /history
-from visualizer_main import create_ui     # Gradio 主界面（美化版）
+from visualizer_main import (             # Gradio 主界面（美化版）+ 样式资源
+    create_ui, GRADIO_CSS, GRADIO_THEME, NAV_BRIDGE_JS,
+)
 
 print("🚢 轮机智脑云端服务启动中…")
 print("   [1/2] 构建 Gradio 主界面")
@@ -30,7 +32,13 @@ demo = create_ui()
 demo.queue(default_concurrency_limit=3)
 
 print("   [2/2] 挂载 Gradio 到 /app")
-app = gr.mount_gradio_app(app, demo, path="/app")
+# Gradio 6：css/js/theme 必须在挂载时显式传入（不会继承 Blocks 构造函数）
+app = gr.mount_gradio_app(
+    app, demo, path="/app",
+    css=GRADIO_CSS,
+    js=NAV_BRIDGE_JS,
+    theme=GRADIO_THEME,
+)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))

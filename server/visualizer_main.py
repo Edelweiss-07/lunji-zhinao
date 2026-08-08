@@ -3658,43 +3658,46 @@ setInterval(function() { _setAndTrigger('refresh-trigger', Date.now().toString()
 """
 
 
+# ═══════════════════════════════════════════════════════════════
+# Gradio 6 注意：css / js / theme 已从 Blocks 构造函数移除（传入会被忽略并告警），
+# 必须传给 launch() 或 mount_gradio_app()。这里统一定义，供本地启动与云端挂载共用。
+# ═══════════════════════════════════════════════════════════════
+INLINE_PAGE_CSS = """
+#history-btn-row { display:flex !important; gap:8px !important; margin-bottom:6px; align-items:stretch !important; }
+#history-btn-row>:first-child { flex:4 !important; }
+#hist-load-btn,#hist-refresh-btn { flex:1 !important; display:flex !important; align-items:stretch !important; }
+@keyframes btnGlow { 0%,100% { box-shadow:0 0 8px rgba(0,255,136,0.3),0 0 20px rgba(0,255,136,0.08),0 2px 10px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.08); } 50% { box-shadow:0 0 14px rgba(0,255,136,0.45),0 0 30px rgba(0,255,136,0.14),0 2px 10px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.1); } }
+#hist-load-btn button,#hist-refresh-btn button { width:100% !important; min-height:42px !important; padding:8px 14px !important; font-size:12.5px !important; font-weight:700 !important; letter-spacing:0.03em !important; color:#00FF88 !important; background:linear-gradient(180deg,rgba(0,20,10,0.95) 0%,rgba(0,40,20,0.9) 100%) !important; border:1.5px solid rgba(0,255,136,0.5) !important; border-radius:10px !important; cursor:pointer !important; transition:all .25s ease !important; text-shadow:0 0 8px rgba(0,255,136,0.5),0 0 2px rgba(0,255,136,0.3) !important; white-space:nowrap !important; animation:btnGlow 3s ease-in-out infinite !important; position:relative !important; overflow:hidden !important; }
+#hist-load-btn button::after,#hist-refresh-btn button::after { content:'' !important; position:absolute !important; inset:1px !important; border-radius:8px !important; background:linear-gradient(180deg,rgba(0,255,136,0.04) 0%,transparent 80%) !important; pointer-events:none !important; }
+#hist-load-btn button:hover,#hist-refresh-btn button:hover { color:#00FF88 !important; background:linear-gradient(180deg,rgba(0,30,15,0.95) 0%,rgba(0,60,30,0.9) 100%) !important; border-color:#00FF88 !important; box-shadow:0 0 20px rgba(0,255,136,0.5),0 0 40px rgba(0,255,136,0.2),0 0 60px rgba(0,255,136,0.08),0 2px 10px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.12) !important; text-shadow:0 0 12px rgba(0,255,136,0.8),0 0 4px rgba(0,255,136,0.5),0 0 20px rgba(0,255,136,0.3) !important; transform:translateY(-1.5px) !important; animation:none !important; }
+#hist-load-btn button:hover::after,#hist-refresh-btn button:hover::after { background:linear-gradient(180deg,rgba(0,255,136,0.08) 0%,transparent 80%) !important; }
+#hist-load-btn button:active,#hist-refresh-btn button:active { color:#FFF !important; background:rgba(0,255,136,0.25) !important; border-color:#FFF !important; box-shadow:0 0 30px rgba(0,255,136,0.6),0 0 50px rgba(0,255,136,0.25),inset 0 2px 4px rgba(0,0,0,0.3) !important; text-shadow:0 0 16px rgba(0,255,136,1),0 0 30px rgba(0,255,136,0.6) !important; transform:translateY(0) !important; animation:none !important; }
+/* 图片识别页所有文字强制深色 */
+.gradio-container .panel-title,
+.gradio-container #image-page .panel-title,
+div.panel-title { color:#1E293B !important; }
+.gradio-container #image-chart label,
+.gradio-container #image-chatbot label { color:#1E293B !important; font-weight:600; }
+.gradio-container #image-question-input input::placeholder { color:#64748B !important; }
+.gradio-container #image-chart .gr-plot label { color:#1E293B !important; }
+#image-chart label, #image-chatbot label { color:#1E293B !important; font-weight:600; }
+#image-question-input input::placeholder { color:#64748B !important; }
+/* 分析按钮全宽居中 */
+#image-analyze-btn button { width:100% !important; height:44px !important; font-size:15px !important; font-weight:600 !important; margin-top:8px !important; }
+/* 清空结果按钮样式 */
+#image-page .gr-button-secondary { border-color:#CBD5E1 !important; color:#475569 !important; }
+/* 分析结果占位文字 */
+#image-chatbot .placeholder { text-align:center; color:#94A3B8; padding:48px 20px; font-size:14px; line-height:1.8; }
+"""
+GRADIO_CSS = INLINE_PAGE_CSS + DASHBOARD_CSS
+GRADIO_THEME = gr.themes.Base(primary_hue="blue", neutral_hue="slate")
+
+
 def create_ui():
     default_system = "排气系统"
 
     with gr.Blocks(
         title="Marine Engine AI - 轮机智脑 · 可视化",
-        css="""
-        #history-btn-row { display:flex !important; gap:8px !important; margin-bottom:6px; align-items:stretch !important; }
-        #history-btn-row>:first-child { flex:4 !important; }
-        #hist-load-btn,#hist-refresh-btn { flex:1 !important; display:flex !important; align-items:stretch !important; }
-        @keyframes btnGlow { 0%,100% { box-shadow:0 0 8px rgba(0,255,136,0.3),0 0 20px rgba(0,255,136,0.08),0 2px 10px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.08); } 50% { box-shadow:0 0 14px rgba(0,255,136,0.45),0 0 30px rgba(0,255,136,0.14),0 2px 10px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.1); } }
-        #hist-load-btn button,#hist-refresh-btn button { width:100% !important; min-height:42px !important; padding:8px 14px !important; font-size:12.5px !important; font-weight:700 !important; letter-spacing:0.03em !important; color:#00FF88 !important; background:linear-gradient(180deg,rgba(0,20,10,0.95) 0%,rgba(0,40,20,0.9) 100%) !important; border:1.5px solid rgba(0,255,136,0.5) !important; border-radius:10px !important; cursor:pointer !important; transition:all .25s ease !important; text-shadow:0 0 8px rgba(0,255,136,0.5),0 0 2px rgba(0,255,136,0.3) !important; white-space:nowrap !important; animation:btnGlow 3s ease-in-out infinite !important; position:relative !important; overflow:hidden !important; }
-        #hist-load-btn button::after,#hist-refresh-btn button::after { content:'' !important; position:absolute !important; inset:1px !important; border-radius:8px !important; background:linear-gradient(180deg,rgba(0,255,136,0.04) 0%,transparent 80%) !important; pointer-events:none !important; }
-        #hist-load-btn button:hover,#hist-refresh-btn button:hover { color:#00FF88 !important; background:linear-gradient(180deg,rgba(0,30,15,0.95) 0%,rgba(0,60,30,0.9) 100%) !important; border-color:#00FF88 !important; box-shadow:0 0 20px rgba(0,255,136,0.5),0 0 40px rgba(0,255,136,0.2),0 0 60px rgba(0,255,136,0.08),0 2px 10px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.12) !important; text-shadow:0 0 12px rgba(0,255,136,0.8),0 0 4px rgba(0,255,136,0.5),0 0 20px rgba(0,255,136,0.3) !important; transform:translateY(-1.5px) !important; animation:none !important; }
-        #hist-load-btn button:hover::after,#hist-refresh-btn button:hover::after { background:linear-gradient(180deg,rgba(0,255,136,0.08) 0%,transparent 80%) !important; }
-        #hist-load-btn button:active,#hist-refresh-btn button:active { color:#FFF !important; background:rgba(0,255,136,0.25) !important; border-color:#FFF !important; box-shadow:0 0 30px rgba(0,255,136,0.6),0 0 50px rgba(0,255,136,0.25),inset 0 2px 4px rgba(0,0,0,0.3) !important; text-shadow:0 0 16px rgba(0,255,136,1),0 0 30px rgba(0,255,136,0.6) !important; transform:translateY(0) !important; animation:none !important; }
-        /* 图片识别页所有文字强制深色 */
-        .gradio-container .panel-title,
-        .gradio-container #image-page .panel-title,
-        div.panel-title { color:#1E293B !important; }
-        .gradio-container #image-chart label,
-        .gradio-container #image-chatbot label { color:#1E293B !important; font-weight:600; }
-        .gradio-container #image-question-input input::placeholder { color:#64748B !important; }
-        .gradio-container #image-chart .gr-plot label { color:#1E293B !important; }
-        #image-chart label, #image-chatbot label { color:#1E293B !important; font-weight:600; }
-        #image-question-input input::placeholder { color:#64748B !important; }
-        /* 分析按钮全宽居中 */
-        #image-analyze-btn button { width:100% !important; height:44px !important; font-size:15px !important; font-weight:600 !important; margin-top:8px !important; }
-        /* 清空结果按钮样式 */
-        #image-page .gr-button-secondary { border-color:#CBD5E1 !important; color:#475569 !important; }
-        /* 分析结果占位文字 */
-        #image-chatbot .placeholder { text-align:center; color:#94A3B8; padding:48px 20px; font-size:14px; line-height:1.8; }
-        """ + DASHBOARD_CSS,
-        js=NAV_BRIDGE_JS,
-        theme=gr.themes.Base(
-            primary_hue="blue",
-            neutral_hue="slate",
-        ),
     ) as demo:
 
         # ── Hidden State ──
@@ -5507,4 +5510,7 @@ if __name__ == "__main__":
     demo.launch(
         server_name="0.0.0.0", server_port=7861, share=False, inbrowser=True,
         show_error=True,
+        css=GRADIO_CSS,
+        js=NAV_BRIDGE_JS,
+        theme=GRADIO_THEME,
     )
