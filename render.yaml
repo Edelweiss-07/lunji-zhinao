@@ -1,0 +1,30 @@
+# Render Blueprint — 轮机智脑
+# 一键创建两个服务：静态门户站 + 合并 Web 服务（Gradio + 历史数据 API）
+# 用法：Render Dashboard → New → Blueprint → 选择本仓库
+services:
+  # ── Web 服务：FastAPI 装配（/ 门户壳、/app Gradio、/history 历史页、/api/* 数据接口）
+  - type: web
+    name: lunji-zhinao-server
+    runtime: python
+    plan: free
+    rootDir: server
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    healthCheckPath: /api/list
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: SCHOOL_API_BASE
+        value: https://chat.cqjtu.edu.cn/ds/api/v1
+      # 以下三个密钥在 Blueprint 应用时手动填写（不会写入 Git）
+      - key: SCHOOL_API_KEY
+        sync: false
+      - key: DSV4_KEY
+        sync: false
+      - key: DSR1_API_KEY
+        sync: false
+
+  # ── 静态站：门户着陆页（CDN 分发，不休眠）
+  - type: static
+    name: lunji-zhinao-portal
+    staticPublishPath: site
