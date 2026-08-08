@@ -4316,7 +4316,6 @@ window.addEventListener('load', () => {
       }
       if (!redirected && elapsed >= REDIRECT_AT) {
         redirected = true;
-        // 演示窗口：打开后端 7861 的 Gradio 智能体界面（公网时指向隧道地址）
         window.open(getBackend(7861) + '/', '_blank');
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         setTimeout(function () { resetOverlay(); }, 300);
@@ -4330,22 +4329,28 @@ window.addEventListener('load', () => {
   document.getElementById('btnDemo').addEventListener('click', triggerDemo);
   document.getElementById('btnDemo2').addEventListener('click', triggerDemo);
 
-  // ── 后端地址配置：公网接入本地 7861/7862/7864 ──
+  // ====== 后端地址解析（隧道模式）======
   // 用法：落地页 URL 后加参数覆盖默认 127.0.0.1
-  //   统一主机：  ?host=https://abc.trycloudflared.com
-  //   分别指定：  ?b1=https://a.tunnel&b2=https://b.tunnel&b4=https://c.tunnel
+  //   ?b1=https://xxx.trycloudflare.com   (7861 智能体主界面)
+  //   ?b2=https://xxx.trycloudflare.com   (7862 历史数据)
+  //   ?b4=https://xxx.trycloudflare.com   (7864 视觉诊断)
+  //   ?host=https://xxx.trycloudflare.com (统一前缀，自动拼端口)
   function getBackend(port) {
-    var p = new URLSearchParams(location.search);
+    var p = new URLSearchParams(window.location.search);
     var map = { 7861: p.get('b1'), 7862: p.get('b2'), 7864: p.get('b4') };
     var host = p.get('host');
     if (map[port]) return map[port].replace(/\/+$/, '');
     if (host) return host.replace(/\/+$/, '') + ':' + port;
-    return window.location.origin;
+    return 'http://127.0.0.1:' + port;
   }
+
   // 历史数据按钮 → 7862 的 /history 页面
   (function () {
     var h = document.getElementById('btnHistory');
-    if (h) { h.href = getBackend(7862) + '/history'; }
+    if (h) h.addEventListener('click', function (e) {
+      e.preventDefault();
+      window.open(getBackend(7862) + '/history', '_blank');
+    });
   })();
 
   // ====== Shark Mascot interaction ======
