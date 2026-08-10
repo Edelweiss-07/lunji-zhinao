@@ -4706,8 +4706,8 @@ def create_ui():
                     choices=list_saved_sessions(), label="选择历史文件",
                     interactive=True, scale=4,
                 )
-                hist_load_btn = gr.Button("📂 加载并查看", scale=1, elem_id="hist-load-btn")
-                hist_refresh_btn = gr.Button("🔄 刷新", scale=1, elem_id="hist-refresh-btn")
+                hist_load_btn = gr.Button("📂 加载并查看", scale=1, elem_id="hist-load-btn", visible=False)
+                hist_refresh_btn = gr.Button("🔄 刷新", scale=1, elem_id="hist-refresh-btn", visible=False)
             history_chart = gr.Plot(
                 value=build_empty_chart(),
                 elem_id="history-chart",
