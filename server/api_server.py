@@ -23,7 +23,7 @@ from datetime import datetime
 from visualizer_core import (
     SYSTEM_TABS, SYSTEM_META, KB_BASELINE, SessionData,
     classify_intent, extract_data_from_message,
-    call_llm_stream, call_school_llm_stream, call_dsv4_stream,
+    call_school_llm_stream, call_dsv4_stream, call_dsr1_chat_stream,
     build_enhanced_chart,
     INTENT_TO_KB_KEY, INTENT_PROMPTS, DATA_HEAVY_INTENTS, KB_INTENTS,
     MAIN_AGENT_PROMPT, list_saved_sessions,
@@ -74,8 +74,8 @@ def _chat_pipeline(query: str, history: list, selected_system: str):
         gen = call_school_llm_stream(MAIN_AGENT_PROMPT, user_prompt)
         model_label = "DS V3"
     else:
-        gen = call_llm_stream(MAIN_AGENT_PROMPT, user_prompt)
-        model_label = "本地qwen"
+        gen = call_dsr1_chat_stream(MAIN_AGENT_PROMPT, user_prompt)
+        model_label = "DSR1 闲聊"
 
     # Send intent + model info
     yield f"data: {json.dumps({'type': 'meta', 'model': model_label, 'intent': intent}, ensure_ascii=False)}\n\n"

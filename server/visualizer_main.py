@@ -35,10 +35,6 @@ from prompts import (
 # API Config（密钥全部从环境变量读取，本地开发可用 .env 或系统环境变量）
 # ═══════════════════════════════════════════════════════════════
 
-OLLAMA_BASE = os.environ.get("OLLAMA_BASE", "")  # 云端留空即禁用本地 Ollama 路由
-MODEL_NAME = os.environ.get("OLLAMA_MODEL", "qwen2.5vl:7b")
-client = OpenAI(base_url=OLLAMA_BASE, api_key="ollama") if OLLAMA_BASE else None
-
 SCHOOL_API_BASE = os.environ.get("SCHOOL_API_BASE", "https://chat.cqjtu.edu.cn/ds/api/v1")
 SCHOOL_API_KEY = os.environ.get("SCHOOL_API_KEY", "")
 SCHOOL_MODEL = os.environ.get("SCHOOL_MODEL", "deepseek-v3-2-251201")
@@ -579,24 +575,10 @@ def extract_data_from_message(query: str) -> dict | None:
 # LLM Calls (unchanged)
 # ═══════════════════════════════════════════════════════════════
 
-def call_llm_stream(system_prompt, user_message):
-    if client is None:
-        yield "⚠️ 本地 Ollama 模型未配置（OLLAMA_BASE 为空），请使用云端模型"
-        return
-    try:
-        stream = client.chat.completions.create(
-            model=MODEL_NAME, temperature=0.7, max_tokens=4096, stream=True,
-            messages=[{"role":"system","content":system_prompt},{"role":"user","content":user_message}],
-        )
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
-    except Exception as e:
-        yield f"❌ LLM调用失败: {e}"
-
 def call_school_llm_stream(system_prompt, user_message):
+    """DS V3（学校端点，降级链锚点）。"""
     if school_client is None:
-        yield "⚠️ 学校 API 未配置（SCHOOL_API_KEY 为空）"
+        yield "⚠️ 学校 API 未配置（SCHOOL_API_KEY 为空），请配置后使用"
         return
     try:
         stream = school_client.chat.completions.create(
@@ -638,8 +620,8 @@ def call_dsr1_chat_stream(system_prompt, user_message):
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
     except Exception as e:
-        yield f"[DSR1 不可用，降级本地qwen]\n"
-        yield from call_llm_stream(system_prompt, user_message)
+        yield f"[DSR1 不可用，降级 DS V3]\n"
+        yield from call_school_llm_stream(system_prompt, user_message)
 
 def classify_intent(query: str) -> str:
     try:
@@ -1211,7 +1193,7 @@ def process_chat_and_viz(
 
 
 # ═══════════════════════════════════════════════════════════════
-# Image Understanding Pipeline (qwen2.5vl multimodal)
+# Image Understanding Pipeline (DSR1 doubao multimodal)
 # ═══════════════════════════════════════════════════════════════
 
 IMAGE_SYSTEM_PROMPT = """你是"轮机智脑"的负载参数分析助手，专门处理轮机仪表盘、监控面板图片，核心任务是对比知识库基线数据判断设备负载状况。
@@ -5512,7 +5494,7 @@ def create_ui():
 if __name__ == "__main__":
     print("=" * 60)
     print("🚢 Marine Engine AI — 轮机智脑 · 可视化监控面板 (Enhanced)")
-    print(f"   Chat model routing: DS V4 Pro / DS V3 / Local qwen")
+    print(f"   Chat model routing: DS V4 Pro / DS V3 / DSR1")
     print(f"   Data extraction: DSR1 (Doubao) @ {DSR1_API_BASE}")
     print(f"   KB baselines: {len(KB_BASELINE)} parameters across {len(SYSTEM_TABS)} systems")
     print("=" * 60)

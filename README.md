@@ -48,8 +48,9 @@ python app.py        # http://localhost:10000/
 |---|---|
 | `SCHOOL_API_KEY` / `DSV4_KEY` / `DSR1_API_KEY` | LLM API 密钥（必填，在 Render 后台设置） |
 | `SCHOOL_API_BASE` / `DSR1_API_BASE` | API 端点（默认学校端点） |
-| `OLLAMA_BASE` | 本地 Ollama 地址（云端留空） |
 | `PORT` | 服务端口（Render 自动注入，本地默认 10000） |
+
+模型路由：数据密集意图 → DS V4 Pro（失败降级 DS V3）· 知识库意图 → DS V3 · 闲聊/图片 → DSR1（失败降级 DS V3）
 
 ## Render 部署
 
