@@ -1025,18 +1025,13 @@ def analyze_image_stream(image_path: str, user_question: str = ""):
             base_kw = "负载 淡水进水 空冷器 温度 排气 推力瓦 滑油"
             extra = user_question.strip() if user_question.strip() else ""
             search_query = f"{base_kw} {extra}".strip()
-            kb_results = retriever.search(search_query, kb_names=IMAGE_KB_NAMES, top_k=12)
-            if kb_results:
-                lines = ["## 知识库参考资料\n"]
-                seen = set()
-                for seg in kb_results:
-                    key = seg.content[:60]
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    lines.append(f"### （来源：{seg.kb_name}）\n{seg.content[:2000]}\n")
-                kb_context = "\n".join(lines)
-                print(f"[KB] 图片分析多KB联合检索命中 {len(kb_results)} 条")
+            # 带预算的检索：去重 + 控制注入 prompt 的总字符量，避免 12×2000=24k 字符稀释上下文
+            kb_context = retriever.retrieve_for_query(
+                search_query, kb_names=IMAGE_KB_NAMES, top_k=12, max_chars=6000, with_source=True,
+            )
+            if kb_context:
+                kb_context = "## 知识库参考资料\n" + kb_context
+                print(f"[KB] 图片分析多KB联合检索命中 {len(kb_context)} 字符")
     except Exception as e:
         print(f"[KB] 图片分析知识库检索失败: {e}")
 
