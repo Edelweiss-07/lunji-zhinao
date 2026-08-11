@@ -3933,10 +3933,14 @@ def create_ui():
             #system-radio label:hover {
                 background: #F0F5FF;
             }
-            #system-radio input:checked + span {
-                color: #165DFF !important;
-                font-weight: 500;
-            }
+            /* 每个系统选中时字体颜色与实时趋势标题一致（仅改字体颜色，最保守写法） */
+            #system-radio input[value="排气系统"]:checked + span { color: #EF4444 !important; font-weight: 500; }
+            #system-radio input[value="冷却系统"]:checked + span { color: #3B82F6 !important; font-weight: 500; }
+            #system-radio input[value="滑油系统"]:checked + span { color: #F59E0B !important; font-weight: 500; }
+            #system-radio input[value="扫气系统"]:checked + span { color: #10B981 !important; font-weight: 500; }
+            #system-radio input[value="燃烧参数"]:checked + span { color: #F97316 !important; font-weight: 500; }
+            #system-radio input[value="增压器"]:checked + span { color: #8B5CF6 !important; font-weight: 500; }
+            #system-radio input[value="油耗"]:checked + span { color: #EC4899 !important; font-weight: 500; }
             #system-radio label:has(input:checked) {
                 background: #F0F5FF;
                 color: #165DFF;
