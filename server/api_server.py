@@ -27,8 +27,9 @@ from visualizer_core import (
     build_enhanced_chart,
     INTENT_TO_KB_KEY, INTENT_PROMPTS, DATA_HEAVY_INTENTS, KB_INTENTS,
     MAIN_AGENT_PROMPT, list_saved_sessions,
-    delete_session, save_session, get_retriever,
+    save_session, get_retriever,
     build_system_cards_html, build_overview_content_html,
+    _safe_history_path,
 )
 
 app = FastAPI(title="Marine Engine AI API")
@@ -221,8 +222,9 @@ async def load_history(filename: str = "", file: str = Query(default="")):
         target = filename or file
         if not target:
             raise HTTPException(status_code=400, detail="Missing filename")
-        history_dir = Path(__file__).parent / "history_data"
-        filepath = history_dir / target
+        filepath = _safe_history_path(target)
+        if filepath is None:
+            raise HTTPException(status_code=400, detail="Invalid filename")
         if not filepath.exists():
             raise HTTPException(status_code=404, detail="File not found")
         with open(filepath, "r", encoding="utf-8") as f:
@@ -259,11 +261,15 @@ async def load_history(filename: str = "", file: str = Query(default="")):
 @app.delete("/api/history/{filename}")
 async def remove_history(filename: str):
     """Delete a history session."""
+    filepath = _safe_history_path(filename)
+    if filepath is None or not filepath.exists():
+        raise HTTPException(status_code=404, detail="File not found")
     try:
-        remaining, msg = delete_session(filename)
-        return {"remaining": list(remaining) if remaining else [], "message": msg}
+        filepath.unlink()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    remaining = list_saved_sessions()
+    return {"remaining": remaining, "message": f"已删除 {filename}"}
 
 
 @app.get("/api/session")

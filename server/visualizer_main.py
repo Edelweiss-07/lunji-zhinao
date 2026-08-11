@@ -1293,11 +1293,14 @@ def analyze_image_stream(image_path: str, user_question: str = ""):
     # KB 数据注入 user message（与聊天管线一致），system prompt 保持不变
     if kb_context:
         user_content = kb_context + "\n\n---\n\n请根据以上知识库参考数据，分析以下图片：\n" + user_content
-        # DEBUG: 写日志验证 KB 是否注入（相对路径，保证可移植）
-        with open(Path(__file__).parent / "viz_debug.log", "w", encoding="utf-8") as _f:
-            _f.write(f"kb_context length: {len(kb_context)}\n")
-            _f.write(f"kb_context preview: {kb_context[:500]}\n")
-            _f.write(f"user_content length: {len(user_content)}\n")
+        # DEBUG: 写日志验证 KB 是否注入（相对路径，保证可移植；写入失败不影响主流程）
+        try:
+            with open(Path(__file__).parent / "viz_debug.log", "w", encoding="utf-8") as _f:
+                _f.write(f"kb_context length: {len(kb_context)}\n")
+                _f.write(f"kb_context preview: {kb_context[:500]}\n")
+                _f.write(f"user_content length: {len(user_content)}\n")
+        except Exception as _e:
+            print(f"[KB] 写调试日志失败（忽略）: {_e}")
 
     try:
         stream = dsr1_client.chat.completions.create(

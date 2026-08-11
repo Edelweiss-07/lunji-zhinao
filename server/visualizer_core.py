@@ -1043,11 +1043,14 @@ def analyze_image_stream(image_path: str, user_question: str = ""):
     # KB 数据注入 user message（与聊天管线一致），system prompt 保持不变
     if kb_context:
         user_content = kb_context + "\n\n---\n\n请根据以上知识库参考数据，分析以下图片：\n" + user_content
-        # DEBUG: 写日志验证 KB 是否注入
-        with open(r"C:\Users\小说加盐\AppData\Roaming\Tencent\Marvis\marvis_data\viz_debug.log", "w", encoding="utf-8") as _f:
-            _f.write(f"kb_context length: {len(kb_context)}\n")
-            _f.write(f"kb_context preview: {kb_context[:500]}\n")
-            _f.write(f"user_content length: {len(user_content)}\n")
+        # DEBUG: 写日志验证 KB 是否注入（相对路径，保证可移植；写入失败不影响主流程）
+        try:
+            with open(Path(__file__).parent / "viz_debug.log", "w", encoding="utf-8") as _f:
+                _f.write(f"kb_context length: {len(kb_context)}\n")
+                _f.write(f"kb_context preview: {kb_context[:500]}\n")
+                _f.write(f"user_content length: {len(user_content)}\n")
+        except Exception as _e:
+            print(f"[KB] 写调试日志失败（忽略）: {_e}")
 
     try:
         stream = dsr1_client.chat.completions.create(
@@ -1778,6 +1781,25 @@ def export_png(selected_system: str, highlight_load: int, time_range: str) -> st
 HISTORY_DIR = Path(__file__).parent / "history_data"
 HISTORY_DIR.mkdir(exist_ok=True)
 
+def _safe_history_path(filename: str) -> Path | None:
+    """Resolve a history filename safely to a path inside HISTORY_DIR.
+
+    拒绝路径穿越：文件名必须是纯文件名（不含目录分隔符、不含 `..`），
+    且解析后的绝对路径必须仍落在 history_data 目录内。非法返回 None。
+    """
+    if not filename or not isinstance(filename, str):
+        return None
+    # 只允许纯文件名：去掉目录成分后必须与原串一致（拦截 ../、绝对路径等）
+    if Path(filename).name != filename:
+        return None
+    filepath = HISTORY_DIR / filename
+    # 双保险：解析后的绝对路径必须仍在 HISTORY_DIR 内
+    try:
+        filepath.resolve().relative_to(HISTORY_DIR.resolve())
+    except ValueError:
+        return None
+    return filepath
+
 def save_session(label: str = "") -> str:
     if not session.points:
         return ""
@@ -1866,8 +1888,8 @@ def save_image_session(hist_data: list, label: str = "", img_path: str = "", cha
 
 
 def load_session_data(filename: str) -> str:
-    filepath = HISTORY_DIR / filename
-    if not filepath.exists():
+    filepath = _safe_history_path(filename)
+    if filepath is None or not filepath.exists():
         return f"文件不存在: {filename}"
     data = json.loads(filepath.read_text(encoding="utf-8"))
     session.clear()
@@ -1890,8 +1912,8 @@ def list_saved_sessions(type_filter: str = "all") -> list[str]:
     return result
 
 def delete_session(filename: str) -> tuple:
-    filepath = HISTORY_DIR / filename
-    if filepath.exists():
+    filepath = _safe_history_path(filename)
+    if filepath is not None and filepath.exists():
         filepath.unlink()
     remaining = list_saved_sessions()
     return gr.Dropdown(choices=remaining, value=None), "\n".join(remaining) if remaining else "*暂无历史数据*"
