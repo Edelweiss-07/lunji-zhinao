@@ -9,7 +9,11 @@ import os
 from pathlib import Path
 import base64
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from collections import defaultdict
+
+# 东八区时区（中国标准时间）
+TZ = ZoneInfo("Asia/Shanghai")
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -212,21 +216,22 @@ class SessionData:
     """Accumulates extracted sensor data points during a session."""
     def __init__(self):
         self.points: list[dict] = []
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(TZ)
 
     def add(self, load: float, param: str, value: float, query: str = ""):
+        now = datetime.now(TZ)
         self.points.append({
             "load": load,
             "param": param,
             "value": value,
-            "time": datetime.now().strftime("%H:%M:%S"),
-            "dt": datetime.now(),
+            "time": now.strftime("%H:%M:%S"),
+            "dt": now,
             "query": query[:60],
         })
 
     def clear(self):
         self.points = []
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(TZ)
 
     def get_params(self) -> list[str]:
         seen = []
@@ -243,7 +248,7 @@ class SessionData:
         return sorted(pts, key=lambda x: x["load"])
 
     def _cutoff_for(self, time_range: str) -> datetime:
-        now = datetime.now()
+        now = datetime.now(TZ)
         mapping = {"1h": timedelta(hours=1), "6h": timedelta(hours=6),
                    "24h": timedelta(hours=24), "7d": timedelta(days=7)}
         return now - mapping.get(time_range, timedelta(days=365))
@@ -281,7 +286,7 @@ from collections import deque
 # 全局健康度历史（最多保留100个时间点，用于绘制趋势图）
 MAX_HEALTH_POINTS = 100
 health_history = deque(maxlen=MAX_HEALTH_POINTS)
-health_history.append({"time": datetime.now().strftime("%H:%M:%S"), "score": 100})
+health_history.append({"time": datetime.now(TZ).strftime("%H:%M:%S"), "score": 100})
 
 # 全局异常列表
 anomalies = []
@@ -296,18 +301,19 @@ def add_anomaly(system: str, param: str, desc: str = "") -> int:
     """新增一个异常，返回异常ID"""
     global anomaly_id_counter
     anomaly_id_counter += 1
+    now = datetime.now(TZ)
     anomaly = {
         "id": anomaly_id_counter,
         "system": system,
         "param": param,
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "time": now.strftime("%Y-%m-%d %H:%M:%S"),
         "status": "unresolved",  # unresolved / resolved
         "desc": desc or f"{param} 参数偏离正常范围",
     }
     anomalies.append(anomaly)
     # 更新健康度历史
     health_history.append({
-        "time": datetime.now().strftime("%H:%M:%S"),
+        "time": now.strftime("%H:%M:%S"),
         "score": get_current_health()
     })
     return anomaly_id_counter
@@ -316,11 +322,12 @@ def resolve_anomaly(anomaly_id: int) -> bool:
     """解决指定异常，返回是否成功"""
     for a in anomalies:
         if a["id"] == anomaly_id:
+            now = datetime.now(TZ)
             a["status"] = "resolved"
-            a["resolve_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            a["resolve_time"] = now.strftime("%Y-%m-%d %H:%M:%S")
             # 更新健康度历史
             health_history.append({
-                "time": datetime.now().strftime("%H:%M:%S"),
+                "time": now.strftime("%H:%M:%S"),
                 "score": get_current_health()
             })
             return True
@@ -996,7 +1003,7 @@ def build_overview_content_html() -> str:
 
 def build_status_bar_html() -> str:
     """Generate the top status bar HTML."""
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
     load_val = session.latest_load()
     load_str = f"{load_val:.0f}%" if load_val is not None else "--"
     point_count = len(session.points)
@@ -1973,7 +1980,7 @@ def export_csv() -> str:
         return "⚠️ 暂无数据可导出"
     output_dir = Path(__file__).parent / "output"
     output_dir.mkdir(exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(TZ).strftime("%Y%m%d_%H%M%S")
     filepath = output_dir / f"marine_data_{ts}.csv"
 
     lines = ["时间,参数,负载(%),实测值,单位,KB基准值,偏差,偏差%,是否异常"]
@@ -4396,6 +4403,14 @@ def create_ui():
             }
             #data-summary-md li {
                 margin: 3px 0;
+            }
+            /* 隐藏Gradio水印 */
+            .gradio-container .footer, .footer, #footer, .gr-footer {
+                display: none !important;
+            }
+            /* 隐藏右下角Gradio版本水印 */
+            .gradio-container > .absolute.bottom-4.right-4 {
+                display: none !important;
             }
             </style>
             """)

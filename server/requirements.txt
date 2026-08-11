@@ -5,3 +5,4 @@ plotly==6.8.0
 numpy>=2.0,<3
 fastapi>=0.115
 uvicorn>=0.30
+tzdata>=2024.1
