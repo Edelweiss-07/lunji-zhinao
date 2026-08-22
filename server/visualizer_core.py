@@ -1245,9 +1245,9 @@ def build_image_analysis_chart(extracted_points: list[dict]) -> go.Figure | None
                 lo = kb_values[lx] - tolerance
                 hi = kb_values[lx] + tolerance
                 if vy < lo or vy > hi:
+                    # 判定一律用绝对偏差（与知识库容差同单位），不用百分比
                     abs_dev = abs(vy - kb_values[lx])
-                    rel_dev = abs_dev / kb_values[lx] if kb_values[lx] else 0
-                    if rel_dev > tolerance * 1.5 / kb_values.get(lx, 1):
+                    if abs_dev > tolerance * 1.5:
                         out_colors.append("#ef4444")  # red — severe
                     else:
                         out_colors.append("#f59e0b")  # yellow — warning

@@ -339,19 +339,21 @@ def _detect_and_add_anomaly(param: str, value: float, load_pct: float):
     closest_load = min(kb_vals.keys(), key=lambda k: abs(k - load_pct))
     baseline_val = kb_vals[closest_load]
     tolerance = kb_entry.get("tolerance", 5)
-    
+    unit = kb_entry.get("unit", "")
+
     if baseline_val == 0:
         return
-    
-    dev_pct = abs((value - baseline_val) / baseline_val * 100)
-    if dev_pct > tolerance:
+
+    # 判定与描述均使用绝对偏差（与知识库容差同单位），不用百分比
+    dev = abs(value - baseline_val)
+    if dev > tolerance:
         # Determine system for this param
         system_name = "未分类"
         for sys_key, params in SYSTEM_TABS.items():
             if param in params:
                 system_name = sys_key
                 break
-        desc = f"{param}={value}，基线={baseline_val}（偏差{dev_pct:.1f}%）"
+        desc = f"{param}={value}{unit}，基线={baseline_val}{unit}（偏差{dev:.1f}{unit}，超出容差±{tolerance}{unit}）"
         add_anomaly(system_name, param, desc)
 
 
@@ -882,22 +884,24 @@ def build_system_cards_html(selected_system: str) -> str:
                 latest = pts[-1]
                 kb = KB_BASELINE.get(param, {})
                 kb_vals = kb.get("values", {})
+                unit = kb.get("unit", "")
+                tol = kb.get("tolerance", 5)
                 if latest["load"] in kb_vals:
                     baseline = kb_vals[latest["load"]]
-                    dev_pct = (latest["value"] - baseline) / baseline * 100
-                    abs_dev = abs(dev_pct)
-                    if abs_dev <= 2:
+                    dev = latest["value"] - baseline
+                    abs_dev = abs(dev)
+                    if abs_dev <= tol:
                         deviation_class = "dev-ok"
                         arrow = ""
-                    elif abs_dev <= 8:
+                    elif abs_dev <= tol * 2:
                         deviation_class = "dev-warn"
-                        arrow = "↑" if dev_pct > 0 else "↓"
+                        arrow = "↑" if dev > 0 else "↓"
                     else:
                         deviation_class = "dev-alert"
-                        arrow = "↑" if dev_pct > 0 else "↓"
+                        arrow = "↑" if dev > 0 else "↓"
                     deviation_str = (
                         f'<span class="deviation {deviation_class}">'
-                        f'{arrow}{abs_dev:.1f}%</span>'
+                        f'{arrow}{abs_dev:.1f}{unit}</span>'
                     )
                 break
 
@@ -947,8 +951,8 @@ def build_overview_content_html() -> str:
                 if latest["load"] in kb_vals:
                     baseline = kb_vals[latest["load"]]
                     if baseline != 0:
-                        dev_pct = abs((latest["value"] - baseline) / baseline * 100)
-                        if dev_pct > 5:
+                        tol = kb.get("tolerance", 5)
+                        if abs(latest["value"] - baseline) > tol:
                             has_alerts = True
                             alert_params.append(param)
 
