@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>轮机智脑 · 监控系统诊断门户</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-deep:#0a0e14;--bg-panel:#111821;--bg-card:#1a2330;--bg-card-h:#222d3d;
+  --border:#2a3548;--border-l:#3a4558;
+  --tx:#e0e6ed;--tx2:#8b9bb4;--tx3:#5a6a80;
+  --green:#00d68f;--yellow:#ffb700;--orange:#ff6b35;--red:#ff3b3b;--blue:#3b82f6;--cyan:#00d4ff;
+}
+body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-deep);color:var(--tx);font-size:13px;min-height:100vh}
+.mono{font-family:'Consolas','Courier New',monospace}
+
+/* Header */
+.hdr{height:60px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:20px;position:sticky;top:0;z-index:10}
+.hdr-logo{display:flex;align-items:center;gap:10px}
+.hdr-icon{font-size:22px}
+.hdr-title{font-size:16px;font-weight:600;color:var(--cyan)}
+.hdr-sub{font-size:11px;color:var(--tx3)}
+.hdr-status{display:flex;align-items:center;gap:8px;margin-left:auto;padding:4px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:20px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.hdr-time{font-size:12px;color:var(--tx2);font-family:'Consolas',monospace}
+
+/* Layout */
+.wrap{max-width:1200px;margin:0 auto;padding:20px 24px}
+
+/* Section */
+.sec{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.sec-hdr{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sec-icon{font-size:16px}
+.sec-title{font-size:14px;font-weight:600}
+.sec-badge{margin-left:auto;font-size:11px;padding:2px 10px;border-radius:12px;font-weight:600}
+.sec-badge.ok{background:rgba(0,214,143,0.15);color:var(--green)}
+.sec-badge.warn{background:rgba(255,183,0,0.15);color:var(--yellow)}
+.sec-badge.err{background:rgba(255,59,59,0.15);color:var(--red)}
+.sec-body{padding:16px 20px}
+
+/* Health cards */
+.health-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.hc{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
+.hc-icon{font-size:24px;margin-bottom:6px}
+.hc-val{font-size:28px;font-weight:700;font-family:'Consolas',monospace}
+.hc-label{font-size:11px;color:var(--tx3);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.hc.green .hc-val{color:var(--green)}
+.hc.yellow .hc-val{color:var(--yellow)}
+.hc.red .hc-val{color:var(--red)}
+.hc.cyan .hc-val{color:var(--cyan)}
+
+/* Log feed */
+.log-box{background:#060a10;border:1px solid var(--border);border-radius:8px;height:260px;overflow-y:auto;font-family:'Consolas',monospace;font-size:12px;padding:8px 0}
+.log-line{padding:3px 16px;display:flex;gap:10px;border-bottom:1px solid rgba(42,53,72,0.3)}
+.log-line.log-priority{font-weight:600}
+.log-line.log-err{background:rgba(255,59,59,0.08);border-left:3px solid var(--red);padding-left:13px}
+.log-line.log-warn{background:rgba(255,183,0,0.06);border-left:3px solid var(--yellow);padding-left:13px}
+.log-time{color:var(--tx3);min-width:72px}
+.log-level{min-width:40px;font-weight:600;text-align:center;border-radius:3px;padding:0 4px}
+.log-level.INFO{color:var(--cyan);background:rgba(0,212,255,0.1)}
+.log-level.WARN{color:var(--yellow);background:rgba(255,183,0,0.1)}
+.log-level.ERR{color:var(--red);background:rgba(255,59,59,0.1)}
+.log-level.OK{color:var(--green);background:rgba(0,214,143,0.1)}
+.log-msg{color:var(--tx2);flex:1}
+.log-sys{color:var(--tx3);min-width:80px}
+
+/* Fault analysis */
+.fault-list{display:flex;flex-direction:column;gap:8px}
+.fault-item{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px}
+.fault-item.critical{border-color:var(--red);background:rgba(255,59,59,0.05)}
+.fault-item.warning{border-color:var(--yellow);background:rgba(255,183,0,0.05)}
+.fault-item.ok{border-color:var(--green);background:rgba(0,214,143,0.05)}
+.fault-icon{font-size:18px;margin-top:1px}
+.fault-info{flex:1}
+.fault-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.fault-desc{font-size:12px;color:var(--tx2);line-height:1.5}
+.fault-action{font-size:11px;color:var(--cyan);margin-top:4px}
+.fault-sev{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;min-width:36px;text-align:center}
+.fault-sev.critical{background:rgba(255,59,59,0.15);color:var(--red)}
+.fault-sev.warning{background:rgba(255,183,0,0.15);color:var(--yellow)}
+.fault-sev.ok{background:rgba(0,214,143,0.15);color:var(--green)}
+
+/* 头部 - 测试款样式 */
+.proto-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(255,107,53,0.18),rgba(255,183,0,0.18));border:1px solid var(--orange);border-radius:14px;font-size:11px;font-weight:600;color:var(--orange);letter-spacing:.5px;position:relative;overflow:hidden}
+.proto-tag::before{content:"";position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:scan 3s linear infinite}
+@keyframes scan{0%{left:-100%}100%{left:100%}}
+.proto-tag .dot{width:5px;height:5px;border-radius:50%;background:var(--orange);animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* 跳转横幅 */
+.jump-banner{margin:0 0 16px 0;padding:14px 20px;background:linear-gradient(135deg,rgba(0,212,255,0.08),rgba(0,214,143,0.06));border:1px solid var(--cyan);border-radius:12px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .2s}
+.jump-banner:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,212,255,0.2);border-color:var(--green)}
+.jump-banner-icon{font-size:28px;animation:spin 6s linear infinite}
+@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.jump-banner-info{flex:1}
+.jump-banner-title{font-size:14px;font-weight:600;color:var(--cyan);margin-bottom:2px}
+.jump-banner-desc{font-size:12px;color:var(--tx2)}
+.jump-banner-arrow{font-size:22px;color:var(--cyan);font-weight:700}
+
+/* 角落水印 */
+.prototype-watermark{position:fixed;bottom:14px;right:18px;z-index:99;padding:6px 14px;background:rgba(255,107,53,0.10);border:1px dashed var(--orange);border-radius:20px;font-size:11px;color:var(--orange);letter-spacing:1px;pointer-events:none;backdrop-filter:blur(4px)}
+
+/* Action bar */
+.action-bar{display:flex;gap:12px;padding:20px;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;margin-bottom:16px}
+.action-btn{flex:1;padding:16px;border:2px solid var(--border);background:var(--bg-card);border-radius:10px;cursor:pointer;font-family:inherit;text-align:left;transition:all .2s;display:flex;align-items:center;gap:14px;color:var(--tx)}
+.action-btn:hover{border-color:var(--border-l);background:var(--bg-card-h)}
+.action-btn.primary{border-color:var(--cyan);background:rgba(0,212,255,0.05)}
+.action-btn.primary:hover{background:rgba(0,212,255,0.1);box-shadow:0 0 16px rgba(0,212,255,0.15)}
+.action-btn.secondary{border-color:var(--blue)}
+.ab-icon{font-size:28px}
+.ab-info{flex:1}
+.ab-title{font-size:14px;font-weight:600;margin-bottom:2px}
+.ab-desc{font-size:12px;color:var(--tx2)}
+.ab-arrow{font-size:18px;color:var(--tx3)}
+
+/* Sensor panel iframe */
+.panel-section{display:none;margin-top:16px}
+.panel-section.show{display:block}
+.panel-frame{width:100%;height:calc(100vh - 80px);border:1px solid var(--border-l);border-radius:12px;background:var(--bg-deep)}
+.panel-close{position:fixed;top:72px;right:24px;z-index:100;padding:8px 16px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;display:none;box-shadow:0 4px 12px rgba(255,59,59,0.3)}
+.panel-close.show{display:block}
+.panel-close:hover{background:#cc2a2a}
+
+/* Connection check */
+.conn-status{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border)}
+.conn-dot{width:8px;height:8px;border-radius:50%}
+.conn-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+.conn-dot.offline{background:var(--red)}
+.conn-text{font-size:12px}
+.conn-latency{font-size:11px;color:var(--tx3);font-family:'Consolas',monospace}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">
+    <span class="hdr-icon">⚓</span>
+    <div>
+      <div class="hdr-title">轮机智脑 · 监控系统诊断门户</div>
+      <div class="hdr-sub">Marine Engine AI - System Diagnostic Portal</div>
+    </div>
+  </div>
+  <span class="proto-tag" title="本系统为原型演示版，部分功能与数据为模拟"><span class="dot"></span>TEST · 测试款 v1.0</span>
+  <div class="hdr-status">
+    <div class="hdr-dot" id="sysDot"></div>
+    <span style="font-size:12px" id="sysStatus">诊断中...</span>
+  </div>
+  <div class="hdr-time" id="hdrTime">--:--:--</div>
+</div>
+
+<div class="wrap">
+  <!-- 跳转横幅：冷却系统（最显眼，主操作入口） -->
+  <div class="jump-banner" id="jumpBanner" onclick="goCoolingSystem()" title="点击进入冷却系统监控面板（含智能体视觉诊断）">
+    <div class="jump-banner-icon">🌊</div>
+    <div class="jump-banner-info">
+      <div class="jump-banner-title">立刻进入「冷却系统」监控面板</div>
+      <div class="jump-banner-desc">DSR1 智能体每 5 分钟自动读图 · 4 个核心温度实时监控 · 工况视觉评估</div>
+    </div>
+    <div class="jump-banner-arrow">→</div>
+  </div>
+
+  <!-- Health Overview -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="sec-icon">📊</span>
+      <span class="sec-title">系统健康概览</span>
+      <span class="sec-badge ok" id="healthBadge">正常</span>
+    </div>
+    <div class="sec-body">
+      <div class="health-grid">
+        <div class="hc green">
+          <div class="hc-icon">✓</div>
+          <div class="hc-val mono" id="hcSensors">33</div>
+          <div class="hc-label">传感器总数</div>
+        </div>
+        <div class="hc green">
+          <div class="hc-icon">●</div>
+          <div class="hc-val mono" id="hcNormal">33</div>
+          <div class="hc-label">正常</div>
+        </div>
+        <div class="hc yellow">
+          <div class="hc-icon">▲</div>
+          <div class="hc-val mono" id="hcWarn">0</div>
+          <div class="hc-label">预警</div>
+        </div>
+        <div class="hc red">
+          <div class="hc-icon">✕</div>
+          <div class="hc-val mono" id="hcAlarm">0</div>
+          <div class="hc-label">报警</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Server Connection -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="sec-icon">🔌</span>
+      <span class="sec-title">服务器连接状态</span>
+    </div>
+    <div class="sec-body">
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="conn-status">
+          <div class="conn-dot" id="gradioDot"></div>
+          <span class="conn-text">轮机智脑 Gradio 服务 (演示服务)</span>
+          <span class="conn-latency" id="gradioLatency">检测中...</span>
+        </div>
+        <div class="conn-status">
+          <div class="conn-dot online"></div>
+          <span class="conn-text">传感器面板模拟器</span>
+          <span class="conn-latency">本地运行</span>
+        </div>
+        <div class="conn-status">
+          <div class="conn-dot online"></div>
+          <span class="conn-text">知识库 (12K98ME-C7)</span>
+          <span class="conn-latency">7 文档已加载</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 智能体视觉诊断区 -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="sec-icon">🧠</span>
+      <span class="sec-title">智能体视觉诊断</span>
+      <span class="sec-badge warn" id="aiBadge">等待数据</span>
+      <span style="font-size:11px;color:var(--tx3);margin-left:auto" id="aiTime">--</span>
+    </div>
+    <div class="sec-body" id="aiDiagBody">
+      <div style="text-align:center;color:var(--tx3);padding:40px 0">正在等待智能体视觉诊断结果...</div>
+    </div>
+  </div>
+
+  <!-- 诊断历史查询区 -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="sec-icon">📂</span>
+      <span class="sec-title">诊断历史</span>
+      <button id="refreshHistory" style="margin-left:auto;padding:4px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--tx);cursor:pointer;font-family:inherit;font-size:12px">刷新</button>
+    </div>
+    <div class="sec-body" style="padding:8px">
+      <div id="historyList" style="max-height:280px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- Log Feed -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <span class="sec-icon">📋</span>
+      <span class="sec-title">系统日志</span>
+      <span style="font-size:11px;color:var(--tx3);margin-left:auto" id="logCount">0 条记录</span>
+    </div>
+    <div class="sec-body" style="padding:12px">
+      <div class="log-box" id="logBox"></div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-bar">
+    <button class="action-btn primary" id="enterPanelBtn">
+      <span class="ab-icon">🌊</span>
+      <div class="ab-info">
+        <div class="ab-title">进入冷却系统监控</div>
+        <div class="ab-desc">12K98ME-C7 冷却系统 · 4 核心温度 · 智能体视觉评估</div>
+      </div>
+      <span class="ab-arrow">→</span>
+    </button>
+    <button class="action-btn secondary" id="enterGradioBtn">
+      <span class="ab-icon">🧠</span>
+      <div class="ab-info">
+        <div class="ab-title">进入轮机智脑</div>
+        <div class="ab-desc">AI 视觉识别、历史数据分析等高级功能</div>
+      </div>
+      <span class="ab-arrow">→</span>
+    </button>
+  </div>
+</div>
+
+<!-- Sensor Panel Section (hidden by default) -->
+<button class="panel-close" id="panelCloseBtn">✕ 退出面板</button>
+<div class="panel-section" id="panelSection">
+  <iframe class="panel-frame" id="panelFrame" src=""></iframe>
+</div>
+
+<!-- 测试款式水印 -->
+<div class="prototype-watermark">⚙ 原型演示版 · TEST PROTOTYPE · 数据为模拟</div>
+
+<script>
+// ===== STATE =====
+const logs = [];
+let logTimer = null;
+let diagnosticRun = false;
+
+// ===== CLOCK =====
+function updateClock() {
+  const now = new Date();
+  document.getElementById('hdrTime').textContent = now.toLocaleTimeString('zh-CN', {hour12:false});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== LOGGING =====
+function addLog(level, sys, msg) {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('zh-CN', {hour12:false}) + '.' + String(now.getMilliseconds()).padStart(3,'0').slice(0,2);
+  logs.unshift({time: timeStr, level, sys, msg});
+  if (logs.length > 100) logs.pop();
+  renderLogs();
+}
+
+function renderLogs() {
+  const box = document.getElementById('logBox');
+  document.getElementById('logCount').textContent = logs.length + ' 条记录';
+  box.innerHTML = logs.map(l => `
+    <div class="log-line${l.priority ? ' log-priority' : ''}${l.level === 'ERR' ? ' log-err' : ''}${l.level === 'WARN' ? ' log-warn' : ''}">
+      <span class="log-time">${l.time}</span>
+      <span class="log-level ${l.level}">${l.level}</span>
+      <span class="log-sys">[${l.sys}]</span>
+      <span class="log-msg">${l.msg}</span>
+    </div>
+  `).join('');
+  box.scrollTop = 0;
+}
+
+// ===== ALARM TRACKING (from sensor panel iframe) =====
+const activeAlarms = new Map(); // sensorId -> alarm data
+
+// ===== 告警推送到企业微信（通过本地中转服务） =====
+// 默认禁用：线上环境没有中转服务，避免每个告警都发一次注定失败的请求。
+// 需要推送时在 URL 上带参数：monitor-portal.html?bridge=http://127.0.0.1:7863
+const ALERT_BRIDGE = new URLSearchParams(location.search).get('bridge') || '';
+function pushAlertToBridge(alert) {
+  if (!ALERT_BRIDGE) return; // 未配置中转服务，仅在本地显示告警
+  // 静默推送，失败不影响前端逻辑
+  fetch(ALERT_BRIDGE.replace(/\/+$/, '') + '/alert', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(alert)
+  }).then(r => r.json()).then(res => {
+    if (res.status === 'pushed') console.log('[告警推送] 已发送到企业微信', alert.sensorName);
+    else if (res.status === 'skipped') console.log('[告警推送] 跳过', res.reason);
+  }).catch(err => {
+    // 中转服务未启动时静默失败（不影响监控页正常工作）
+    console.warn('[告警推送] 中转服务未连接，告警仅在本地显示');
+  });
+}
+
+window.addEventListener('message', e => {
+  const d = e.data;
+  if (!d || !d.type) return;
+
+  if (d.type === 'SENSOR_ALARM') {
+    // Map alarm level to log level
+    const logLevel = (d.level === 'hh' || d.level === 'll') ? 'ERR' : 'WARN';
+    const levelText = {hh:'高高(HH)', ll:'低低(LL)', h:'高报(H)', l:'低报(L)'}[d.level];
+    const dir = (d.level === 'hh' || d.level === 'h') ? '超过' : '低于';
+
+    // Add high-priority alarm log
+    addLogPriority(logLevel, d.system, `⚠ ${d.sensorName}(${d.sensorSymbol}) ${levelText}报警 — 当前值 ${formatLogVal(d.value)}${d.sensorUnit}，${dir}报警限值`);
+
+    // Track active alarm
+    activeAlarms.set(d.sensorName, {level: d.level, value: d.value, unit: d.sensorUnit, system: d.system, time: d.time});
+
+    // Update health cards
+    updateHealthFromAlarms();
+
+    // Flash the header status
+    flashStatus(d.level);
+
+    // 推送到企业微信
+    pushAlertToBridge({
+      sensorName: d.sensorName,
+      sensorSymbol: d.sensorSymbol,
+      level: d.level,
+      value: formatLogVal(d.value),
+      unit: d.sensorUnit,
+      system: d.system,
+      time: d.time || new Date().toLocaleTimeString('zh-CN', {hour12:false})
+    });
+  }
+
+  if (d.type === 'SENSOR_ALARM_RESOLVED') {
+    if (activeAlarms.has(d.sensorName)) {
+      const prev = activeAlarms.get(d.sensorName);
+      activeAlarms.delete(d.sensorName);
+      addLogPriority('OK', 'ALARM', `✓ ${d.sensorName}(${d.sensorSymbol}) 报警已解除，恢复正常`);
+      updateHealthFromAlarms();
+
+      // 推送解除告警到企业微信
+      pushAlertToBridge({
+        sensorName: d.sensorName,
+        sensorSymbol: d.sensorSymbol,
+        level: 'ok',
+        value: '',
+        unit: '',
+        system: prev.system,
+        time: new Date().toLocaleTimeString('zh-CN', {hour12:false})
+      });
+    }
+  }
+});
+
+function addLogPriority(level, sys, msg) {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('zh-CN', {hour12:false}) + '.' + String(now.getMilliseconds()).padStart(3,'0').slice(0,2);
+  logs.unshift({time: timeStr, level, sys, msg, priority: true});
+  if (logs.length > 100) logs.pop();
+  renderLogs();
+}
+
+function formatLogVal(v) {
+  if (Math.abs(v) >= 1000) return v.toFixed(0);
+  if (Math.abs(v) >= 100) return v.toFixed(1);
+  if (Math.abs(v) >= 10) return v.toFixed(2);
+  return v.toFixed(3);
+}
+
+function updateHealthFromAlarms() {
+  const total = 33;
+  const alarmCount = activeAlarms.size;
+  const hhCount = [...activeAlarms.values()].filter(a => a.level === 'hh' || a.level === 'll').length;
+  const warnCount = alarmCount - hhCount;
+  const normalCount = total - alarmCount;
+
+  document.getElementById('hcNormal').textContent = normalCount;
+  document.getElementById('hcWarn').textContent = warnCount;
+  document.getElementById('hcAlarm').textContent = hhCount;
+
+  // Update health card colors
+  const hcNormal = document.getElementById('hcNormal').parentElement;
+  const hcWarn = document.getElementById('hcWarn').parentElement;
+  const hcAlarm = document.getElementById('hcAlarm').parentElement;
+
+  hcNormal.className = 'hc ' + (normalCount === total ? 'green' : normalCount > total * 0.7 ? 'green' : 'yellow');
+  hcWarn.className = 'hc ' + (warnCount > 0 ? 'yellow' : 'green');
+  hcAlarm.className = 'hc ' + (hhCount > 0 ? 'red' : 'green');
+
+  // Update health badge
+  const badge = document.getElementById('healthBadge');
+  if (hhCount > 0) {
+    badge.className = 'sec-badge err';
+    badge.textContent = `${hhCount} 项报警`;
+  } else if (warnCount > 0) {
+    badge.className = 'sec-badge warn';
+    badge.textContent = `${warnCount} 项预警`;
+  } else {
+    badge.className = 'sec-badge ok';
+    badge.textContent = '正常';
+  }
+
+  // Update fault badge
+  const fBadge = document.getElementById('faultBadge');
+  if (hhCount > 0) {
+    fBadge.className = 'sec-badge err';
+    fBadge.textContent = '存在故障';
+  } else if (warnCount > 0) {
+    fBadge.className = 'sec-badge warn';
+    fBadge.textContent = '存在预警';
+  } else {
+    fBadge.className = 'sec-badge ok';
+    fBadge.textContent = '无故障';
+  }
+}
+
+function flashStatus(level) {
+  const dot = document.getElementById('sysDot');
+  const status = document.getElementById('sysStatus');
+  const originalText = status.textContent;
+
+  if (level === 'hh' || level === 'll') {
+    dot.style.background = 'var(--red)';
+    dot.style.boxShadow = '0 0 8px var(--red)';
+    status.textContent = '⚠ 报警触发！';
+    status.style.color = 'var(--red)';
+  } else {
+    dot.style.background = 'var(--yellow)';
+    dot.style.boxShadow = '0 0 8px var(--yellow)';
+    status.textContent = '⚠ 预警触发';
+    status.style.color = 'var(--yellow)';
+  }
+
+  setTimeout(() => {
+    dot.style.background = 'var(--green)';
+    dot.style.boxShadow = '0 0 6px var(--green)';
+    status.textContent = originalText;
+    status.style.color = '';
+  }, 5000);
+}
+
+// ===== SERVER HEALTH CHECK =====
+async function checkGradioServer() {
+  const dot = document.getElementById('gradioDot');
+  const latencyEl = document.getElementById('gradioLatency');
+  const start = Date.now();
+  try {
+    const resp = await fetch('/demo/', {mode:'no-cors', signal: AbortSignal.timeout(5000)});
+    const latency = Date.now() - start;
+    dot.className = 'conn-dot online';
+    latencyEl.textContent = `${latency}ms`;
+    addLog('OK', 'GRADIO', `轮机智脑服务连接正常，响应延迟 ${latency}ms`);
+    return true;
+  } catch(e) {
+    dot.className = 'conn-dot offline';
+    latencyEl.textContent = '连接失败';
+    addLog('ERR', 'GRADIO', `轮机智脑服务连接失败: ${e.message}`);
+    return false;
+  }
+}
+
+// ===== 智能体视觉诊断 =====
+const AI_API = '/ai';
+
+async function fetchLatestDiagnosis() {
+  try {
+    const resp = await fetch(AI_API + '/latest', {signal: AbortSignal.timeout(8000)});
+    const data = await resp.json();
+    renderAIDiagnosis(data, false);
+  } catch(e) {
+    document.getElementById('aiDiagBody').innerHTML = '<div style="text-align:center;color:var(--red);padding:30px">智能体服务未连接 <span style="font-size:12px">(诊断服务)</span><br><span style="font-size:11px;color:var(--tx3)">请启动 agent_vision_monitor.py</span></div>';
+    document.getElementById('aiBadge').textContent = '离线';
+    document.getElementById('aiBadge').className = 'sec-badge err';
+  }
+}
+
+function renderAIDiagnosis(data, isHistory) {
+  const badge = document.getElementById('aiBadge');
+  const statusMap = {normal:['ok','正常'], concern:['warn','关注'], abnormal:['err','异常'], waiting:['warn','等待']};
+  const [cls, txt] = statusMap[data.status] || ['warn', data.status||'未知'];
+  badge.className = 'sec-badge ' + cls;
+  badge.textContent = txt;
+  document.getElementById('aiTime').textContent = (data.time||'--') + (isHistory?' [历史]':(' · 下次'+(data.next_check||'--')));
+
+  const assess = data.assessment || {};
+  const shotSrc = isHistory ? (AI_API + '/screenshot/' + data.id) : (AI_API + '/screenshot');
+  let html = '';
+
+  html += '<div style="margin-bottom:12px;text-align:center"><img src="' + shotSrc + '" style="max-width:100%;border:1px solid var(--border);border-radius:8px" alt="智能体截图" onerror="this.style.display=\'none\'"></div>';
+
+  html += '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">';
+  html += '<div style="font-size:12px;color:var(--cyan);margin-bottom:6px">视觉评估 · ' + (assess.system||'未知') + ' · 负载' + (data.load||'?') + '% · ' + (data.vision_method==='vision'?'DSR1真视觉':'读DOM') + '</div>';
+  html += '<div style="font-size:13px;color:var(--tx);line-height:1.6">' + (assess.assessment||'--') + '</div>';
+  if (assess.concerns && assess.concerns.length) {
+    html += '<div style="margin-top:8px;font-size:12px;color:var(--yellow)">关注点：' + assess.concerns.map(c=>'·'+c).join(' ') + '</div>';
+  }
+  html += '</div>';
+
+  if (data.sensors && Object.keys(data.sensors).length) {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px">';
+    for (const [name, s] of Object.entries(data.sensors)) {
+      const stColor = ({'正常':'var(--green)','高报':'var(--orange)','低报':'var(--yellow)','高高':'var(--red)','低低':'var(--red)'})[s.status]||'var(--tx2)';
+      html += '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:8px">';
+      html += '<div style="font-size:11px;color:var(--tx3)">' + name + '</div>';
+      html += '<div style="font-size:16px;font-family:Consolas,monospace;color:' + stColor + '">' + (s.value!=null?s.value:'--') + ' <span style="font-size:11px;color:var(--tx3)">' + (s.unit||'') + '</span></div>';
+      html += '<div style="font-size:10px;color:' + stColor + '">' + (s.status||'') + '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  if (data.diagnosis && data.diagnosis.conclusions) {
+    const dg = data.diagnosis;
+    html += '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">';
+    html += '<div style="font-size:12px;color:var(--cyan);margin-bottom:6px">推理诊断</div>';
+    if (dg.reasoning) html += '<div style="font-size:12px;color:var(--tx2);line-height:1.6;margin-bottom:8px">' + dg.reasoning + '</div>';
+    for (const c of dg.conclusions) {
+      html += '<div style="margin-bottom:6px;padding:8px;background:var(--bg-deep);border-radius:6px;border-left:3px solid var(--cyan)">';
+      html += '<div style="font-size:13px;font-weight:600">' + (c.diagnosis||'') + ' <span style="font-size:11px;color:var(--cyan)">置信度' + (c.confidence||0) + '%</span></div>';
+      if (c.reasoning) html += '<div style="font-size:11px;color:var(--tx2);margin-top:4px">' + c.reasoning + '</div>';
+      if (c.evidence) html += '<div style="font-size:11px;color:var(--tx3);margin-top:2px">依据：' + c.evidence + '</div>';
+      html += '</div>';
+    }
+    if (dg.recommendation) html += '<div style="font-size:12px;color:var(--green);margin-top:8px">处置建议：' + dg.recommendation + '</div>';
+    if (data.kb_sources && data.kb_sources.length) html += '<div style="font-size:11px;color:var(--tx3);margin-top:6px">知识库来源：' + [...new Set(data.kb_sources)].join('、') + '</div>';
+    html += '</div>';
+  } else if (data.anomalies && data.anomalies.length) {
+    html += '<div style="font-size:12px;color:var(--yellow);padding:8px">检测到' + data.anomalies.length + '个异常，正在诊断...</div>';
+  } else if (!assess.concerns || !assess.concerns.length) {
+    html += '<div style="font-size:12px;color:var(--green);padding:8px">所有参数在容差范围内，工况正常</div>';
+  }
+
+  document.getElementById('aiDiagBody').innerHTML = html;
+}
+
+async function fetchHistory() {
+  try {
+    const resp = await fetch(AI_API + '/history', {signal: AbortSignal.timeout(8000)});
+    const data = await resp.json();
+    renderHistory(data.records||[]);
+  } catch(e) {
+    document.getElementById('historyList').innerHTML = '<div style="text-align:center;color:var(--tx3);padding:20px">历史服务未连接</div>';
+  }
+}
+
+function renderHistory(records) {
+  if (!records.length) {
+    document.getElementById('historyList').innerHTML = '<div style="text-align:center;color:var(--tx3);padding:20px">暂无历史记录</div>';
+    return;
+  }
+  const statusColor = {normal:'var(--green)',concern:'var(--yellow)',abnormal:'var(--red)'};
+  document.getElementById('historyList').innerHTML = records.map(r =>
+    '<div onclick="viewHistory(\'' + r.id + '\')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--bg-card)\'" onmouseout="this.style.background=\'transparent\'">' +
+    '<span style="width:8px;height:8px;border-radius:50%;background:' + (statusColor[r.status]||'var(--tx3)') + ';flex-shrink:0"></span>' +
+    '<span style="font-size:12px;color:var(--tx2);min-width:140px">' + (r.time||'') + '</span>' +
+    '<span style="font-size:12px;color:var(--tx);min-width:80px">' + (r.system||'') + '</span>' +
+    '<span style="font-size:11px;color:var(--tx3);min-width:60px">负载' + (r.load||'') + '%</span>' +
+    '<span style="font-size:11px;color:var(--tx3)">' + (r.overall_status||'') + (r.anomaly_count?(' ·'+r.anomaly_count+'异常'):'') + '</span>' +
+    '</div>'
+  ).join('');
+}
+
+async function viewHistory(id) {
+  try {
+    const resp = await fetch(AI_API + '/history/' + id, {signal: AbortSignal.timeout(8000)});
+    const data = await resp.json();
+    renderAIDiagnosis(data, true);
+    document.getElementById('aiDiagBody').scrollIntoView({behavior:'smooth'});
+    addLog('INFO', 'HISTORY', '查看历史诊断 ' + id);
+  } catch(e) {}
+}
+
+// ===== CONTINUOUS LOG SIMULATION =====
+const logTemplates = [
+  {level:'INFO', sys:'DPU-1', msg:'Remote Analogue Input RAi-16 通道采样完成 (10ms周期)'},
+  {level:'INFO', sys:'DPU-2', msg:'Remote Analogue Input RAi-16 通道采样完成 (10ms周期)'},
+  {level:'OK', sys:'ALARM', msg:'排气系统全部传感器状态正常'},
+  {level:'OK', sys:'ALARM', msg:'冷却系统全部传感器状态正常'},
+  {level:'INFO', sys:'FILTER', msg:'2阶巴特沃斯滤波器运行中，截止频率 10Hz'},
+  {level:'INFO', sys:'SCALING', msg:'A/D转换器16bit采样，量程 0-65535 Counts'},
+  {level:'OK', sys:'TC-MON', msg:'增压器转速 9945rpm (100%负载)，在正常区间 9874-10070rpm 内'},
+  {level:'OK', sys:'FUEL', msg:'燃油消耗率修正值 175.39 g/kWh，在正常波动范围 ±3% 内'},
+  {level:'INFO', sys:'MOP', msg:'MOP Process Information 数据更新完成'},
+  {level:'OK', sys:'SCAVENGE', msg:'扫气压力 2.86bar，偏差 < ±0.2bar'},
+  {level:'INFO', sys:'COMM', msg:'DPU总线通信正常，Process Segment Starcoupler 在线'},
+  {level:'OK', sys:'LUBE', msg:'滑油入口压力 1.25bar，在 1.18-1.33bar 正常范围内'},
+  {level:'INFO', sys:'EXHAUST', msg:'排气均值温度计算完成，12缸数据参与计算'},
+  {level:'OK', sys:'COMBUST', msg:'最大爆发压力 150.0bar，保护机制有效 (90%负载后稳定)'},
+  {level:'INFO', sys:'COOLING', msg:'冷却淡水出口温度 78.8°C，在 78-84°C 稳定区间'},
+  {level:'WARN', sys:'TC-AFTER', msg:'涡轮后温度数据波动检测：100%负载值异常(1805°C)，建议核查'},
+  {level:'OK', sys:'GRADIO', msg:'Gradio API 心跳正常，组件状态健康'},
+  {level:'INFO', sys:'KB', msg:'知识库数据完整性校验通过 (7/7 文档)'},
+];
+
+function startLogFeed() {
+  let idx = 0;
+  logTimer = setInterval(() => {
+    const tmpl = logTemplates[idx % logTemplates.length];
+    addLog(tmpl.level, tmpl.sys, tmpl.msg);
+    idx++;
+  }, 2000 + Math.random() * 2000);
+}
+
+// ===== PANEL TOGGLE =====
+document.getElementById('enterPanelBtn').addEventListener('click', () => {
+  const section = document.getElementById('panelSection');
+  const closeBtn = document.getElementById('panelCloseBtn');
+  const frame = document.getElementById('panelFrame');
+
+  if (section.classList.contains('show')) {
+    section.classList.remove('show');
+    closeBtn.classList.remove('show');
+    frame.src = '';
+    addLog('INFO', 'UI', '退出冷却系统监控面板，返回诊断门户');
+  } else {
+    frame.src = 'cooling-system.html';
+    section.classList.add('show');
+    closeBtn.classList.add('show');
+    addLog('OK', 'UI', '进入冷却系统监控面板（4 核心温度 + 智能体诊断）');
+    section.scrollIntoView({behavior:'smooth'});
+    window.scrollTo(0, 0);
+  }
+});
+
+document.getElementById('panelCloseBtn').addEventListener('click', () => {
+  const section = document.getElementById('panelSection');
+  const closeBtn = document.getElementById('panelCloseBtn');
+  const frame = document.getElementById('panelFrame');
+  section.classList.remove('show');
+  closeBtn.classList.remove('show');
+  frame.src = '';
+  addLog('INFO', 'UI', '退出冷却系统监控面板');
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+
+document.getElementById('enterGradioBtn').addEventListener('click', () => {
+  addLog('INFO', 'UI', '跳转至轮机智脑 Gradio 服务');
+  window.open('/demo', '_blank');
+});
+
+// ===== 跳转横幅：冷却系统 =====
+function goCoolingSystem() {
+  addLog('OK', 'UI', '通过门户跳转横幅进入冷却系统监控面板');
+  // 直接新开窗口加载冷却系统入口页（更接近独立产品的体验）
+  window.open('/static/cooling-system.html', '_blank');
+}
+
+// ===== INIT =====
+async function init() {
+  addLog('INFO', 'SYSTEM', '监控系统诊断门户启动');
+  addLog('INFO', 'SYSTEM', '正在加载知识库 (12K98ME-C7, MAN专属4库)...');
+  addLog('OK', 'SYSTEM', '知识库加载完成：温度监测+负载指数+涡轮增压器+油耗监测');
+  addLog('INFO', 'SYSTEM', '正在检查服务器连接...');
+
+  const gradioOk = await checkGradioServer();
+
+  addLog('INFO', 'AI', '连接智能体视觉诊断服务 (7864)...');
+  fetchLatestDiagnosis();
+  fetchHistory();
+  setInterval(fetchLatestDiagnosis, 30000);
+
+  document.getElementById('refreshHistory').addEventListener('click', () => {
+    fetchHistory();
+    addLog('INFO', 'HISTORY', '刷新诊断历史');
+  });
+
+  document.getElementById('sysStatus').textContent = gradioOk ? '系统正常运行' : '部分服务离线';
+  
+  startLogFeed();
+}
+
+init();
+</script>
+</body>
+</html>

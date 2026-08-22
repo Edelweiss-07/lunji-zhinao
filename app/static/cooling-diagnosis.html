@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能体视觉工况评估 · 冷却系统 | 12K98ME-C7</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-deep:#020B14;--bg-panel:#0a1525;--bg-card:#0d1b30;--bg-card-h:#142640;
+  --border:rgba(0,212,255,0.18);--border-l:rgba(0,212,255,0.35);
+  --tx:#E6F0F5;--tx2:#A0B8C8;--tx3:#5a7a8a;
+  --cyan:#00d4ff;--cyan-glow:rgba(0,212,255,0.30);
+  --teal:#00BFA5;--teal-glow:rgba(0,191,165,0.30);
+  --green:#00D68F;--yellow:#ffb700;--orange:#ff6b35;--red:#ff3b3b;
+}
+body{font-family:'Inter','Microsoft YaHei','Segoe UI',sans-serif;background:var(--bg-deep);color:var(--tx);min-height:100vh;font-size:14px;background-image:radial-gradient(ellipse at 20% 0%,rgba(0,212,255,0.06) 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,rgba(0,191,165,0.04) 0%,transparent 55%)}
+.mono{font-family:'SF Mono','Cascadia Code','Consolas',monospace}
+
+/* 顶部 */
+.hdr{padding:24px 32px 16px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(0,212,255,0.04) 0%,transparent 100%)}
+.hdr-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hdr-icon{font-size:28px;color:var(--cyan);filter:drop-shadow(0 0 10px var(--cyan-glow))}
+.hdr-title{font-size:22px;font-weight:700;color:var(--tx);letter-spacing:0.5px}
+.hdr-sub{font-size:12px;color:var(--tx3);font-family:'SF Mono',monospace;letter-spacing:0.05em;margin-top:2px}
+.hdr-back{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:9px 16px;background:rgba(0,191,165,0.08);border:1px solid rgba(0,191,165,0.3);border-radius:8px;color:var(--teal);font-size:13px;font-weight:500;text-decoration:none;transition:all .2s}
+.hdr-back:hover{background:rgba(0,191,165,0.16);border-color:var(--teal);box-shadow:0 0 14px rgba(0,191,165,0.25);color:var(--teal)}
+
+/* 知识库标识 */
+.kb-banner{margin:16px 32px 0;padding:12px 16px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:10px;font-size:12px;color:var(--tx2);line-height:1.6;display:flex;align-items:center;gap:10px}
+.kb-banner-tag{padding:2px 8px;background:rgba(0,212,255,0.15);color:var(--cyan);border-radius:4px;font-weight:600;font-size:11px;flex-shrink:0}
+.kb-banner code{background:rgba(0,212,255,0.12);padding:1px 6px;border-radius:4px;font-family:'SF Mono',monospace;color:var(--cyan);font-size:11px}
+
+/* 主体 */
+.main{padding:20px 32px 40px;max-width:1400px;margin:0 auto}
+
+/* 状态栏 */
+.status-bar{display:flex;align-items:center;gap:16px;padding:14px 20px;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;flex-wrap:wrap}
+.status-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx2)}
+.status-val{color:var(--tx);font-weight:600;font-family:'SF Mono',monospace}
+.status-dot{width:9px;height:9px;border-radius:50%;background:var(--tx3);flex-shrink:0}
+.status-dot.online{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+.status-dot.warn{background:var(--yellow);box-shadow:0 0 8px var(--yellow);animation:pulse 2s infinite}
+.status-dot.offline{background:var(--red);box-shadow:0 0 6px var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.ctrl-btn{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid;transition:all .2s;display:none}
+.ctrl-btn.show{display:inline-flex;align-items:center;gap:6px}
+.ctrl-btn.start{background:rgba(0,214,143,0.1);border-color:rgba(0,214,143,0.4);color:var(--green)}
+.ctrl-btn.start:hover{background:rgba(0,214,143,0.2);box-shadow:0 0 12px rgba(0,214,143,0.25)}
+.ctrl-btn.stop{background:rgba(255,59,59,0.1);border-color:rgba(255,59,59,0.4);color:var(--red)}
+.ctrl-btn.stop:hover{background:rgba(255,59,59,0.2);box-shadow:0 0 12px rgba(255,59,59,0.25)}
+
+/* 工况评估 */
+.assess{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:20px}
+.assess-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.assess-icon{font-size:18px;color:var(--cyan)}
+.assess-title{font-size:14px;font-weight:600;color:var(--tx)}
+.assess-status{margin-left:auto;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500}
+.assess-status.normal{background:rgba(0,214,143,0.1);color:var(--green);border:1px solid rgba(0,214,143,0.3)}
+.assess-status.warn{background:rgba(255,183,0,0.1);color:var(--yellow);border:1px solid rgba(255,183,0,0.3)}
+.assess-status.err{background:rgba(255,59,59,0.1);color:var(--red);border:1px solid rgba(255,59,59,0.3)}
+.assess-status.unknown{background:rgba(90,122,138,0.15);color:var(--tx3);border:1px solid rgba(90,122,138,0.3)}
+.assess-meta{font-size:12px;color:var(--tx3);font-family:'SF Mono',monospace;margin-bottom:12px;line-height:1.6}
+.assess-meta b{color:var(--cyan);font-weight:600}
+.assess-text{font-size:13px;color:var(--tx);line-height:1.7;padding:14px 16px;background:var(--bg-card);border-radius:8px;border-left:3px solid var(--cyan)}
+.assess-concerns{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.assess-concern{padding:8px 12px;background:rgba(255,183,0,0.06);border:1px solid rgba(255,183,0,0.2);border-radius:6px;font-size:12px;color:var(--yellow);line-height:1.5}
+
+/* 视觉读数网格 */
+.vision-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px}
+.vc{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
+.vc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0.4}
+.vc-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;gap:8px}
+.vc-name{font-size:13px;color:var(--tx);font-weight:600}
+.vc-sym{font-size:10px;color:var(--tx3);font-family:'SF Mono',monospace;margin-top:2px}
+.vc-tag{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:500;flex-shrink:0}
+.vc-tag.normal{background:rgba(0,214,143,0.1);color:var(--green);border:1px solid rgba(0,214,143,0.3)}
+.vc-tag.warn{background:rgba(255,183,0,0.1);color:var(--yellow);border:1px solid rgba(255,183,0,0.3)}
+.vc-tag.err{background:rgba(255,59,59,0.1);color:var(--red);border:1px solid rgba(255,59,59,0.3)}
+.vc-tag.unknown{background:rgba(90,122,138,0.15);color:var(--tx3);border:1px solid rgba(90,122,138,0.3)}
+.vc-compare{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.vc-cell{padding:8px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px}
+.vc-cell-label{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;font-weight:600}
+.vc-cell-val{font-size:16px;color:var(--tx);font-weight:700;font-family:'SF Mono',monospace}
+.vc-cell-val.muted{color:var(--tx3);font-size:12px;font-weight:500}
+.vc-cell-sub{font-size:9px;color:var(--tx3);font-family:'SF Mono',monospace;margin-top:3px}
+.vc-delta{font-size:11px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-family:'SF Mono',monospace}
+.vc-delta.normal{color:var(--green)}
+.vc-delta.warn{color:var(--yellow)}
+.vc-delta.err{color:var(--red)}
+.vc-delta.muted{color:var(--tx3)}
+
+/* 截图 */
+.shot{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px}
+.shot-title{font-size:13px;color:var(--cyan);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.shot-img{width:100%;max-width:1190px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);display:block}
+.shot-empty{width:100%;height:120px;display:flex;align-items:center;justify-content:center;background:var(--bg-card);border:1px dashed var(--border);border-radius:8px;color:var(--tx3);font-size:12px}
+.shot-path{font-size:10px;color:var(--tx3);font-family:'SF Mono',monospace;margin-top:8px;word-break:break-all}
+
+/* 历史 */
+.hist{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:16px 20px}
+.hist-title{font-size:13px;color:var(--cyan);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:4px 0;transition:color .2s}
+.hist-title:hover{color:#00eaff}
+.hist-arrow{font-size:10px;transition:transform .25s;display:inline-block}
+.hist-arrow.open{transform:rotate(90deg)}
+.hist-count{font-size:11px;color:var(--tx3);font-weight:400}
+.hist-list{display:flex;flex-direction:column;gap:6px}
+.hist-row{display:grid;grid-template-columns:180px 80px 1fr 90px;gap:12px;padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;font-size:12px;align-items:center}
+.hist-time{color:var(--tx2);font-family:'SF Mono',monospace;font-size:11px}
+.hist-load{color:var(--teal);font-family:'SF Mono',monospace;font-weight:600}
+.hist-msg{color:var(--tx);min-height:0}
+.hist-st{padding:3px 10px;border-radius:10px;font-size:10px;font-weight:500;text-align:center}
+.hist-st.normal{background:rgba(0,214,143,0.1);color:var(--green);border:1px solid rgba(0,214,143,0.3)}
+.hist-st.warn{background:rgba(255,183,0,0.1);color:var(--yellow);border:1px solid rgba(255,183,0,0.3)}
+.hist-st.err{background:rgba(255,59,59,0.1);color:var(--red);border:1px solid rgba(255,59,59,0.3)}
+.hist-sensors{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
+.hist-sensor{padding:1px 5px;border-radius:4px;font-size:10px;font-family:'SF Mono',monospace;white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
+.hist-sensor.normal{background:rgba(34,224,138,0.08);color:var(--green);border:1px solid rgba(34,224,138,0.18)}
+.hist-sensor.warn{background:rgba(255,194,51,0.08);color:var(--yellow);border:1px solid rgba(255,194,51,0.2)}
+.hist-sensor.err{background:rgba(255,77,77,0.1);color:var(--red);border:1px solid rgba(255,77,77,0.25)}
+.hist-sensor.unknown{background:rgba(158,192,184,0.06);color:var(--tx3);border:1px solid rgba(158,192,184,0.12)}
+.hist-empty{font-size:12px;color:var(--tx3);padding:10px 12px;background:var(--bg-card);border:1px dashed var(--border);border-radius:6px}
+
+@media(max-width:760px){
+  .hdr{padding:16px 20px 12px}
+  .main{padding:16px 20px 30px}
+  .kb-banner{margin:12px 20px 0;font-size:11px}
+  .status-bar{gap:10px}
+  .hist-row{grid-template-columns:1fr 60px 80px;gap:6px;font-size:11px}
+  .hist-msg{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-row">
+    <span class="hdr-icon">🧠</span>
+    <div>
+      <div class="hdr-title">智能体视觉工况评估 · 冷却系统</div>
+      <div class="hdr-sub">DSR1 多模态 · 截图扫描 · 12K98ME-C7 · 4 视觉读数 + 工况评估</div>
+    </div>
+    <a class="hdr-back" href="cooling-system.html">← 返回监测面板</a>
+  </div>
+</div>
+
+<div class="kb-banner">
+  <span class="kb-banner-tag">数据流</span>
+  <span>本页数据由后台视觉智能体 <b style="color:var(--cyan)">agent_vision_monitor.py</b>（<code>诊断服务</code>）周期性截取监测面板、调用 DSR1 读图后回写，本页每 30 秒拉取一次 <code>/latest</code>，每 60 秒拉取 <code>/history</code>。诊断推理引用依据限定在 <b style="color:var(--cyan)">MAN 专属 4 库</b> 内。</span>
+</div>
+
+<div class="main">
+
+  <!-- 状态栏 -->
+  <div class="status-bar">
+    <div class="status-item"><span class="status-dot" id="connDot"></span><span>视觉智能体服务：</span><span class="status-val" id="connStatus">检测中...</span></div>
+    <div class="status-item"><span>当前负载：</span><span class="status-val" id="curLoad">--%</span></div>
+    <div class="status-item"><span>最近评估：</span><span class="status-val" id="curTime">--</span></div>
+    <div class="status-item"><span>下次检查：</span><span class="status-val" id="nextTime">--</span></div>
+    <div class="status-item"><span>当前时间：</span><span class="status-val mono" id="curClock">--:--:--</span></div>
+    <div class="status-item"><span>数据延迟：</span><span class="status-val" id="evalDelay">--</span></div>
+    <div class="status-item"><span>识别方式：</span><span class="status-val" id="visMethod">--</span></div>
+    <div class="status-item" style="margin-left:auto">
+      <button class="ctrl-btn start" id="btnStart" onclick="startAgent()" title="启动 agent_vision_monitor.py">▶ 启动 Agent</button>
+      <button class="ctrl-btn stop" id="btnStop" onclick="stopAgent()" title="停止视觉智能体服务">■ 停止 Agent</button>
+    </div>
+  </div>
+
+  <!-- DSR1 工况评估 -->
+  <div class="assess">
+    <div class="assess-hdr">
+      <span class="assess-icon">📋</span>
+      <span class="assess-title">DSR1 工况评估结论</span>
+      <span class="assess-status unknown" id="assessStatus">等待</span>
+    </div>
+    <div class="assess-meta" id="assessMeta">尚未拉取到评估数据</div>
+    <div class="assess-text" id="assessText">等待连接视觉智能体服务（诊断服务），请启动 agent_vision_monitor.py...</div>
+    <div class="assess-concerns" id="assessConcerns"></div>
+  </div>
+
+  <!-- 4 视觉读数（DSR1 看图读出的值 vs KB 基准） -->
+  <div class="vision-grid" id="visionGrid"></div>
+
+  <!-- 截图 -->
+  <div class="shot">
+    <div class="shot-title">📸 最近一次截图（DSR1 读图源）</div>
+    <img class="shot-img" id="shotImg" alt="agent capture" style="display:none" />
+    <div class="shot-empty" id="shotEmpty">暂无截图</div>
+    <div class="shot-path" id="shotPath">--</div>
+  </div>
+
+  <!-- 历史评估 -->
+  <div class="hist">
+    <div class="hist-title" id="histToggle">
+      <span class="hist-arrow" id="histArrow">▶</span> 🗂 历史评估记录 <span class="hist-count" id="histCount"></span>
+    </div>
+    <div class="hist-list" id="histList" style="display:none"><div class="hist-empty">暂无历史</div></div>
+  </div>
+
+</div>
+
+<script>
+// ===== MAN 12K98ME-C7 冷却系统 KB 基准（与监测面板一致） =====
+const COOLING_BASELINE = {
+  "淡水进水温度":       {unit:"℃", symbol:"tcoolin",  tolerance:5, values:{25:17,   50:19,   75:22,   90:26,   100:32,  110:34}},
+  "缸套水出水温度":     {unit:"℃", symbol:"texvf",    tolerance:3, values:{25:86.3, 50:88.4, 75:89.9, 90:92.8, 100:95.2, 110:99.1}},
+  "冷却淡水出水温度":   {unit:"℃", symbol:"tcoolout", tolerance:2, values:{25:83.7, 50:79.6, 75:78.8, 90:78.4, 100:78.8, 110:78.5}},
+  "活塞冷却油出口温度": {unit:"℃", symbol:"tpco",     tolerance:2, values:{25:48.3, 50:54.1, 75:57.6, 90:58.8, 100:59.1, 110:59.8}}
+};
+const LOADS = [25, 50, 75, 90, 100, 110];
+const AI_API = '/ai';
+let _latestTime = null;
+
+function getBaselineAt(name, load) {
+  const v = COOLING_BASELINE[name].values;
+  if (load <= 25) return v[25];
+  if (load >= 110) return v[110];
+  for (let i = 0; i < LOADS.length - 1; i++) {
+    if (load >= LOADS[i] && load <= LOADS[i+1]) {
+      const t = (load - LOADS[i]) / (LOADS[i+1] - LOADS[i]);
+      return +(v[LOADS[i]] + t * (v[LOADS[i+1]] - v[LOADS[i]])).toFixed(2);
+    }
+  }
+  return v[100];
+}
+
+function statusToTag(s){
+  if(s==='正常')return'normal';
+  if(s==='关注'||s==='超容差')return'warn';
+  if(s==='异常'||s==='严重超差')return'err';
+  return'unknown';
+}
+
+function renderVisionCards(sensors, load){
+  const grid = document.getElementById('visionGrid');
+  if(!sensors || !Object.keys(sensors).length){
+    grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--tx3);padding:20px;text-align:center;background:var(--bg-panel);border:1px dashed var(--border);border-radius:8px">尚无视觉读数（等待 agent 完成首次扫描）</div>';
+    return;
+  }
+  const ld = load||100;
+  grid.innerHTML = Object.entries(COOLING_BASELINE).map(([name, bl])=>{
+    const s = sensors[name] || {};
+    const vVal = (s.value!=null && !isNaN(s.value)) ? +s.value : null;
+    const baseline = getBaselineAt(name, ld);
+    const low = +(baseline - bl.tolerance).toFixed(1);
+    const high = +(baseline + bl.tolerance).toFixed(1);
+    const tag = statusToTag(s.status);
+    let deltaStr='尚无视觉读数', deltaCls='muted';
+    const mutedClass = (vVal==null) ? 'muted' : '';
+    const cellContent = (vVal!=null) ? (vVal+' <span style="font-size:10px;color:var(--tx2)">'+bl.unit+'</span>') : '-- 暂无';
+    if(vVal!=null){
+      const d = +(vVal - baseline).toFixed(2);
+      deltaStr = '视觉偏差 ' + (d>=0?'+':'') + d + ' ' + bl.unit + '（vs 基准 ' + baseline + ' ' + bl.unit + '）';
+      deltaCls = Math.abs(d)<=bl.tolerance ? 'normal' : Math.abs(d)<=bl.tolerance*2 ? 'warn' : 'err';
+    }
+    return `
+      <div class="vc">
+        <div class="vc-hdr">
+          <div><div class="vc-name">${name}</div><div class="vc-sym">${bl.symbol}</div></div>
+          <div class="vc-tag ${tag}">● ${s.status||'未知'}</div>
+        </div>
+        <div class="vc-compare">
+          <div class="vc-cell">
+            <div class="vc-cell-label">🤖 DSR1 视觉读数</div>
+            <div class="vc-cell-val ${mutedClass}">${cellContent}</div>
+          </div>
+          <div class="vc-cell">
+            <div class="vc-cell-label">📐 KB 基准（${ld}%）</div>
+            <div class="vc-cell-val">${baseline} <span style="font-size:10px;color:var(--tx2)">${bl.unit}</span></div>
+            <div class="vc-cell-sub">容差±${bl.tolerance} · [${low}, ${high}]</div>
+          </div>
+        </div>
+        <div class="vc-delta ${deltaCls}">${deltaStr}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderHistory(list){
+  const el = document.getElementById('histList');
+  if(!list || !list.length){ el.innerHTML='<div class="hist-empty">暂无历史</div>'; return; }
+  const shortName = {'淡水进水温度':'淡水进','缸套水出水温度':'缸套水','冷却淡水出水温度':'淡水出','活塞冷却油出口温度':'活塞油'};
+  const stCls = {'正常':'normal','超容差':'warn','严重超差':'err','未知':'unknown'};
+  el.innerHTML = list.slice(0,12).map(h=>{
+    const st = statusToTag(h.overall_status||'');
+    const stText = ({normal:'正常',warn:'关注',err:'异常',unknown:'--'})[st];
+    let msg;
+    if(h.sensors_summary && h.sensors_summary.length){
+      msg = '<span class="hist-sensors">'+h.sensors_summary.map(s=>{
+        const sv = s.value!=null ? s.value+'℃' : '--';
+        const sc = stCls[s.status]||'unknown';
+        return `<span class="hist-sensor ${sc}">${shortName[s.name]||s.name} ${sv}</span>`;
+      }).join('')+'</span>';
+    } else {
+      const conc = (h.concern_count||0) + (h.anomaly_count||0);
+      msg = conc>0 ? `${h.overall_status||'--'} · 关注/异常 ${conc} 项` : (h.overall_status||'正常');
+    }
+    return `<div class="hist-row">
+      <span class="hist-time">${h.time||h.id||'--'}</span>
+      <span class="hist-load">${h.load!=null?h.load+'%':'--'}</span>
+      <span class="hist-msg">${msg}</span>
+      <span class="hist-st ${st}">${stText}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('histCount').textContent = `(${list.length} 条)`;
+}
+
+function setOffline(){
+  const dot = document.getElementById('connDot');
+  dot.className = 'status-dot offline';
+  document.getElementById('connStatus').textContent = '离线';
+  document.getElementById('curLoad').textContent = '--%';
+  document.getElementById('curTime').textContent = '--';
+  document.getElementById('nextTime').textContent = '--';
+  document.getElementById('visMethod').textContent = '--';
+  const se = document.getElementById('assessStatus');
+  se.textContent = '离线'; se.className = 'assess-status unknown';
+  document.getElementById('assessMeta').textContent = 'agent 未连接，无最新评估';
+  document.getElementById('assessText').textContent = '视觉智能体服务未连接（诊断服务），请启动 agent_vision_monitor.py。';
+  document.getElementById('assessConcerns').innerHTML = '';
+  document.getElementById('visionGrid').innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--tx3);padding:20px;text-align:center;background:var(--bg-panel);border:1px dashed var(--border);border-radius:8px">尚无视觉读数（agent 离线）</div>';
+  document.getElementById('shotImg').style.display='none';
+  document.getElementById('shotEmpty').style.display='flex';
+  document.getElementById('shotPath').textContent = '--';
+  _latestTime = null;
+  updateDelay();
+  document.getElementById('btnStart').textContent = '▶ 开始诊断';
+  document.getElementById('btnStart').classList.add('show');
+  document.getElementById('btnStop').classList.remove('show');
+}
+
+async function startAgent(){
+  const b = document.getElementById('btnStart');
+  b.textContent = '⏳ 启动中...'; b.disabled = true;
+  // 1) 先探 7865 启动器（如存在的话）—— 容忍失败，因为 agent 多数情况已经在跑
+  try{
+    const r = await fetch('/ai/start', {signal: AbortSignal.timeout(8000)});
+    if(r.ok){ await r.json().catch(()=>{}); }
+  }catch(e){ console.warn('[startAgent] 7865 launcher skipped:', e.message); }
+  // 2) 等 AI_API（agent）健康 —— 兼容两种 health 格式：{ok:true} 与 {status:'ok'}
+  let online = false;
+  for(let i=0;i<20;i++){
+    try{
+      const h = await fetch(AI_API + '/health', {signal: AbortSignal.timeout(2500)});
+      if(h.ok){
+        const hd = await h.json().catch(()=>({}));
+        if(hd && (hd.ok === true || hd.status === 'ok')){ online = true; break; }
+      }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r,1000));
+  }
+  if(!online){
+    b.textContent = '⚠ 启动失败(agent 未上线)';
+    b.disabled = false;
+    setTimeout(fetchHealth, 6000);
+    return;
+  }
+  // 3) 关键调用：开诊断循环
+  try{
+    const r2 = await fetch(AI_API + '/start_diagnosis', {signal: AbortSignal.timeout(6000)});
+    const d2 = await r2.json().catch(()=>({}));
+    if(d2 && d2.ok){
+      b.textContent = '⏳ 等待首次评估...';
+    }else{
+      b.textContent = '⚠ ' + (d2.error || 'start_diagnosis 失败');
+      b.disabled = false;
+      setTimeout(fetchHealth, 6000);
+      return;
+    }
+  }catch(e){
+    b.textContent = '⚠ /start_diagnosis 失败: ' + e.message;
+    b.disabled = false;
+    setTimeout(fetchHealth, 6000);
+    return;
+  }
+  fetchHealth();
+  fetchLatest();
+  fetchHistory();
+}
+async function stopAgent(){
+  const b = document.getElementById('btnStop');
+  b.textContent = '⏳ 停止中...'; b.disabled = true;
+  try{
+    await fetch(AI_API + '/stop_diagnosis', {signal: AbortSignal.timeout(4000)});
+  }catch(e){}
+  fetchHealth();
+}
+
+function applyData(data){
+  const dot = document.getElementById('connDot');
+  dot.className = 'status-dot online';
+  document.getElementById('connStatus').textContent = '在线';
+  // 按钮状态（诊断中/已暂停）由 fetchHealth 根据 /health.diagnosing 驱动
+  document.getElementById('curLoad').textContent = (data.load!=null?data.load:'--') + '%';
+  document.getElementById('curTime').textContent = data.time || '--';
+  document.getElementById('nextTime').textContent = data.next_check || '--';
+  document.getElementById('visMethod').textContent = data.vision_method==='vision' ? 'DSR1 真视觉' : (data.vision_method||'--');
+
+  const a = data.assessment || {};
+  const statusMap = {'正常':['正常','normal'], '关注':['关注','warn'], '异常':['异常','err'], '等待':['等待','unknown']};
+  const [txt, cls] = statusMap[a.overall_status] || ['未知','unknown'];
+  const se = document.getElementById('assessStatus');
+  se.textContent = txt; se.className = 'assess-status ' + cls;
+  document.getElementById('assessMeta').innerHTML = '<b>'+(a.system||'冷却系统')+'</b> · 负载 <b>'+(data.load||'--')+'%</b> · 识别方式 <b>'+(data.vision_method==='vision'?'DSR1 真视觉':(data.vision_method||'读DOM'))+'</b> · 时间 <b>'+(data.time||'--')+'</b>';
+  document.getElementById('assessText').textContent = a.assessment || '尚无评估';
+  const ce = document.getElementById('assessConcerns');
+  ce.innerHTML = (a.concerns && a.concerns.length) ? a.concerns.map(c=>'<div class="assess-concern">⚠ '+c+'</div>').join('') : '';
+
+  renderVisionCards(data.sensors||{}, data.load);
+
+  // 截图：相对路径（与本 html 同目录，自动定位 screenshots/ 子目录）
+  if(data.screenshot){
+    const fp = String(data.screenshot).replace(/\\/g,'/');
+    const fname = fp.split('/').pop();
+    const img = document.getElementById('shotImg');
+    const empty = document.getElementById('shotEmpty');
+    img.src = '/ai/screenshots/' + fname + '?t=' + Date.now();
+    img.style.display = 'block';
+    empty.style.display = 'none';
+    document.getElementById('shotPath').textContent = fp;
+  }else{
+    document.getElementById('shotImg').style.display='none';
+    document.getElementById('shotEmpty').style.display='flex';
+    document.getElementById('shotPath').textContent = '--';
+  }
+
+  // 时间意识：记录最新评估时间，触发延迟计算（陈旧时切 warn + 显启动按钮）
+  _latestTime = parseDt(data.time);
+  updateDelay();
+}
+
+async function fetchLatest(){
+  try{
+    const resp = await fetch(AI_API + '/latest', {signal: AbortSignal.timeout(6000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data = await resp.json();
+    applyData(data);
+  }catch(e){
+    /* 连接状态由 fetchHealth 统一管理，此处静默 */
+  }
+}
+
+async function fetchHistory(){
+  try{
+    const resp = await fetch(AI_API + '/history', {signal: AbortSignal.timeout(5000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data = await resp.json();
+    const list = Array.isArray(data) ? data : (data.records || data.history || []);
+    renderHistory(list);
+  }catch(e){ /* /history 暂不可用时静默 */ }
+}
+
+fetchLatest();
+fetchHistory();
+fetchHealth();
+setInterval(fetchLatest, 30000);
+setInterval(fetchHistory, 60000);
+setInterval(fetchHealth, 5000);
+
+// ===== 诊断开关状态（驱动按钮：诊断中/已暂停）=====
+async function fetchHealth(){
+  try{
+    const resp = await fetch(AI_API + '/health', {signal: AbortSignal.timeout(4000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const h = await resp.json();
+    applyHealth(h);
+  }catch(e){
+    setOffline();
+  }
+}
+function applyHealth(h){
+  document.getElementById('connDot').className = 'status-dot online';
+  const bs = document.getElementById('btnStart'), bp = document.getElementById('btnStop');
+  bs.disabled = false; bp.disabled = false;
+  if(h.diagnosing){
+    document.getElementById('connStatus').textContent = '在线 · 诊断中';
+    bs.classList.remove('show');
+    bp.classList.add('show');
+    bp.textContent = '■ 停止诊断';
+  } else {
+    document.getElementById('connStatus').textContent = '在线 · 已暂停';
+    bs.classList.add('show');
+    bp.classList.remove('show');
+    bs.textContent = '▶ 开始诊断';
+  }
+}
+
+// ===== 时间意识：实时钟 + 数据延迟感知 =====
+function parseDt(s){
+  if(!s) return null;
+  // 后端输出 "2026-08-06 02:40:03"（UTC，但无时区后缀）
+  // 不加 Z 的话 new Date() 会当成北京时间（+8），算出"8小时前"这种离谱延迟
+  let str = String(s).replace(' ','T');
+  if(!str.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(str)){
+    str += 'Z';
+  }
+  const t = new Date(str);
+  return isNaN(t.getTime()) ? null : t;
+}
+function fmtAgo(ms){
+  if(ms < 0) ms = 0;
+  const s = Math.floor(ms/1000);
+  if(s < 60) return s + '秒前';
+  const m = Math.floor(s/60);
+  if(m < 60) return m + '分前';
+  const h = Math.floor(m/60);
+  return h + '时' + (m%60) + '分前';
+}
+function updateDelay(){
+  const el = document.getElementById('evalDelay');
+  if(!el) return;
+  if(_latestTime == null){
+    el.textContent = '--';
+    el.style.color = '';
+    return;
+  }
+  const ms = Date.now() - _latestTime.getTime();
+  el.textContent = fmtAgo(ms);
+  if(ms > 10*60*1000){
+    el.style.color = 'var(--yellow)';
+  } else {
+    el.style.color = '';
+  }
+}
+function tickClock(){
+  const el = document.getElementById('curClock');
+  if(el){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    el.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+  updateDelay();
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+// 历史记录折叠/展开
+document.getElementById('histToggle').addEventListener('click', function(){
+  const list = document.getElementById('histList');
+  const arrow = document.getElementById('histArrow');
+  if(list.style.display === 'none'){
+    list.style.display = 'flex';
+    arrow.classList.add('open');
+  }else{
+    list.style.display = 'none';
+    arrow.classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>

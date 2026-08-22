@@ -1,4 +1,9 @@
-app/
+__pycache__/
+app/*backup*
+app/*.bak*
+app/viz_debug.log
+app/output/
+app/data/
 public/fish_data.js
 public/images/
 cloudflared.exe
