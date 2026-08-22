@@ -5499,7 +5499,9 @@ if __name__ == "__main__":
     demo.queue(default_concurrency_limit=3)
     demo.launch(
         server_name="0.0.0.0", server_port=7861, share=False, inbrowser=False,
-        # 不设 root_path，统一由反代在 /demo/ 路径下提供访问，剥前缀转发到 7861/
+        # 反代在 /demo/ 路径下提供访问时，须设 root_path="/demo"（start.sh 注入 GRADIO_ROOT_PATH），
+        # 否则页面 JS 会生成不带前缀的 API URL 导致 404；本地直连 7861 时不设该变量。
+        root_path=os.environ.get("GRADIO_ROOT_PATH", ""),
         show_error=True,
         css=DASHBOARD_CSS,
         js=NAV_BRIDGE_JS,

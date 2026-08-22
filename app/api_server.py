@@ -412,15 +412,14 @@ async def _close_stream(resp, client):
 
 
 async def _sse_with_heartbeat(resp):
-    """SSE 流式透传 + 心跳保活。
+    """SSE 流式透传 + 心跳保活（5s data 帧，防 Render 代理掐断长连接）。
 
-    Cloudflare 免费层会在 100s 无数据传输时主动掐断长连接，
-    Gradio 6.x 检测到断开会弹 "Connection lost / Attempting reconnection..."。
-    这里每 30s 检测一次：若上游 30s 内没发数据，就主动发一个 SSE comment
-    包（`: heartbeat\\n\\n`，Gradio 客户端会忽略），让连接保持活跃。
+    Render 免费层代理可能在 30-55s 无数据时掐断 SSE（且不认 X-Accel-Buffering），
+    所以心跳必须比它的最短空闲阈值更频繁。每 5s 发 data 帧确保代理视连接为活跃。
+    Gradio 6.x 检测到断开后弹 "Connection lost"，所有按钮失灵。
 
     实现要点：后台读协程持续从上游 aiter_raw() 读数据放入队列，主生成器只
-    对「队列等待」设 30s 超时——读操作本身永不被 cancel（cancel 会直接
+    对「队列等待」设 5s 超时——读操作本身永不被 cancel（cancel 会直接
     断开 httpx 到上游的连接，导致后续数据丢失）。
     """
     import asyncio
@@ -441,10 +440,10 @@ async def _sse_with_heartbeat(resp):
     try:
         while True:
             try:
-                kind, payload = await asyncio.wait_for(queue.get(), timeout=30.0)
+                kind, payload = await asyncio.wait_for(queue.get(), timeout=5.0)
             except asyncio.TimeoutError:
-                # 30s 内上游无新数据，发心跳保活，连接不中断
-                yield b": heartbeat\n\n"
+                # 5s 内上游无新数据，发 data 帧心跳保活，连接不中断
+                yield b"data: kp\n\n"
                 continue
             if kind == "done":
                 break
@@ -460,8 +459,8 @@ async def _sse_with_heartbeat(resp):
 
 @app.api_route("/demo/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def proxy_demo(full_path: str, request: Request):
-    """Reverse proxy /demo/* -> Gradio 7861（剥 /demo 前缀，因 Gradio 6.x 不设 root_path）."""
-    new_path = "/" + full_path if full_path else "/"
+    """Reverse proxy /demo/* -> Gradio 7861（路径原样透传，Gradio 设 root_path="/demo" 后内部路由含 /demo 前缀）."""
+    new_path = "/demo/" + full_path if full_path else "/demo/"
     return await _reverse_proxy(request, "http://127.0.0.1:7861", path_override=new_path)
 
 

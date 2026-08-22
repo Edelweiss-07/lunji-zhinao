@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.dockerignore
+*.bak*
+temp/
+app/data/
+app/__pycache__/
+serve.py
+public/
+cloudflared.exe

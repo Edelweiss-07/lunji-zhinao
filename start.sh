@@ -24,14 +24,15 @@ AGENT_PID=$!
 echo "    Agent PID=$AGENT_PID"
 
 echo ">>> [boot] 启动 Gradio 演示 (7861) — /demo/* 上游"
+export GRADIO_ROOT_PATH=/demo
 python3 "visualizer_new_美化版.py" > /tmp/gradio.log 2>&1 &
 GRADIO_PID=$!
-echo "    Gradio PID=$GRADIO_PID"
+echo "    Gradio PID=$GRADIO_PID (root_path=/demo)"
 
 # 等 7861 就绪（免费层冷启动较慢，放宽到 150s）
 echo ">>> [boot] 等 7861 Gradio..."
 for i in $(seq 1 150); do
-  if curl -s -o /dev/null --max-time 2 http://127.0.0.1:7861/ ; then
+  if curl -s -o /dev/null --max-time 2 http://127.0.0.1:7861/demo/ ; then
     echo "    ✓ 7861 就绪 (${i}s)"
     break
   fi
