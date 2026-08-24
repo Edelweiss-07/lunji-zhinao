@@ -16,6 +16,7 @@
   写 latest_diagnosis.json + history/<id>.json + history/index.json
 """
 import os
+import base64
 import json
 import math
 import random
@@ -27,7 +28,7 @@ import traceback
 from pathlib import Path
 
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from openai import OpenAI
 
@@ -114,6 +115,71 @@ class _Sim:
 
 _sim = _Sim()
 
+
+# ===== 云端真实截图（headless Chromium 渲染 cooling-system.html 并截屏） =====
+_last_capture_ok = None  # None=未尝试 True/False=最近一次结果
+
+
+def _playwright_ok():
+    try:
+        from playwright.sync_api import sync_playwright  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _prune_shots(shots_dir: Path, keep: int = 10):
+    try:
+        files = sorted(shots_dir.glob("capture_*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for old in files[keep:]:
+            old.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
+def capture_panel(load: float, fault: str):
+    """headless Chromium 打开冷却面板页面真实截图；失败返回 None（回退无截图模式）。"""
+    global _last_capture_ok
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        _last_capture_ok = False
+        return None
+    shots_dir = DATA_DIR / "screenshots"
+    shots_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    path = shots_dir / f"capture_{ts}.png"
+    port = os.environ.get("PORT", "10000")
+    url = (f"http://127.0.0.1:{port}/static/cooling-system.html"
+           f"?mode=manual&load={load}&fault={fault}")
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True, args=[
+                "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
+                "--disable-extensions", "--hide-scrollbars",
+                "--single-process", "--disable-software-rasterizer",
+            ])
+            try:
+                ctx = browser.new_context(viewport={"width": 1400, "height": 1086})
+                page = ctx.new_page()
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(2500)
+                page.screenshot(path=str(path))
+            finally:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+        if path.exists() and path.stat().st_size > 0:
+            _prune_shots(shots_dir)
+            _last_capture_ok = True
+            print(f"[agent] 云端截图 OK {path.name} size={path.stat().st_size}", flush=True)
+            return path
+    except Exception as e:
+        print(f"[agent] 云端截图失败（回退无截图模式）: {type(e).__name__}: {str(e)[:200]}", flush=True)
+    _last_capture_ok = False
+    return None
+
 # ===== 浏览器 DOM 真实值缓存 =====
 _dom_state = None
 _dom_lock = threading.Lock()
@@ -178,8 +244,8 @@ def _judge(load, raw_sensors):
     return sensors, concerns, overall
 
 
-def _assessment_text(load, sensors, concerns, overall):
-    """DSR1 撰写工况评估文；未配置密钥或调用失败时本地模板兜底。"""
+def _assessment_text(load, sensors, concerns, overall, img_path=None):
+    """DSR1 撰写工况评估文（有截图时带图真视觉）；未配置密钥或失败时本地模板兜底。"""
     rows = []
     for name, s in sensors.items():
         rows.append(f"- {name}：{s['value']}{s['unit']}（{s['status']}，基准 {get_baseline(name, load)}{s['unit']}）")
@@ -192,11 +258,23 @@ def _assessment_text(load, sensors, concerns, overall):
     )
     if _dsr1 is None:
         return fallback
+    user_text = (
+        f"主机负载：{load}%\n四参数实测（含状态判定）：\n{table}\n\n"
+        f"超差关注点：\n{issues}\n\n整体判定：{overall}。请写工况评估文。"
+    )
     try:
+        if img_path and Path(img_path).exists():
+            b64 = base64.b64encode(Path(img_path).read_bytes()).decode()
+            content = [
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+                {"type": "text", "text": user_text + "\n\n附图是刚从云端 headless 浏览器截取的冷却系统监测面板实时截图，请结合截图内容撰写。"},
+            ]
+        else:
+            content = user_text
         resp = _dsr1.chat.completions.create(
             model=DSR1_MODEL,
             temperature=0.4,
-            max_tokens=600,
+            max_tokens=800,
             messages=[
                 {"role": "system", "content": (
                     "你是远洋船舶资深轮机长，精通 MAN B&W 12K98ME-C7 大型低速二冲程柴油机的冷却系统运维。"
@@ -204,10 +282,7 @@ def _assessment_text(load, sensors, concerns, overall):
                     "先给整体结论，再点出异常参数的可能原因（如缸套水温偏高→冷却器结垢/温控阀故障），"
                     "最后给一句处置建议。不要输出 JSON、表格或标题，直接输出正文。"
                 )},
-                {"role": "user", "content": (
-                    f"主机负载：{load}%\n四参数实测（含状态判定）：\n{table}\n\n"
-                    f"超差关注点：\n{issues}\n\n整体判定：{overall}。请写工况评估文。"
-                )},
+                {"role": "user", "content": content},
             ],
         )
         text = (resp.choices[0].message.content or "").strip()
@@ -236,7 +311,7 @@ def _save(diag):
         "id": diag["id"], "time": diag["time"], "system": "冷却系统", "load": diag["load"],
         "status": diag["status"], "overall_status": diag["assessment"]["overall_status"],
         "anomaly_count": len(diag["anomalies"]), "concern_count": len(diag["assessment"]["concerns"]),
-        "screenshot": None, "sensors_summary": ssum,
+        "screenshot": diag.get("screenshot"), "sensors_summary": ssum,
     })
     INDEX.write_text(json.dumps(idx[:HISTORY_KEEP], ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -244,30 +319,36 @@ def _save(diag):
 def run_once():
     with _run_lock:
         load, raw_sensors, source = _collect_readings()
+        fault = "normal"
+        if source == "dom":
+            fault = _dom_state.get("fault", "normal") if _dom_state else "normal"
+        else:
+            fault = _sim.fault
+        img = capture_panel(load, fault)
         sensors, concerns, overall = _judge(load, raw_sensors)
         now = datetime.datetime.now()
         diag = {
             "id": now.strftime("%Y%m%d_%H%M%S"),
             "time": now.strftime("%Y-%m-%d %H:%M:%S"),
             "load": load,
-            "screenshot": None,
+            "screenshot": img.name if img else None,
             "sensors": sensors,
             "assessment": {
                 "system": "冷却系统",
                 "overall_status": overall,
-                "assessment": _assessment_text(load, sensors, concerns, overall),
+                "assessment": _assessment_text(load, sensors, concerns, overall, img_path=img),
                 "concerns": concerns,
             },
             "anomalies": [],
             "diagnosis": None,
-            "vision_method": source,   # dom=浏览器真实值 / sim=云端模拟器
+            "vision_method": "vision" if img else source,   # vision=云端截图+DSR1 / dom=读DOM / sim=云端模拟器
             "kb_sources": ["温度监测", "负载指数"],
             "status": {"正常": "normal", "关注": "warn", "异常": "abnormal"}[overall],
             "next_check": (now + datetime.timedelta(seconds=INTERVAL)).strftime("%H:%M:%S"),
             "interval_sec": INTERVAL,
         }
         _save(diag)
-        print(f"[agent] {diag['time']} diag OK  source={source}  load={load}%  {overall}", flush=True)
+        print(f"[agent] {diag['time']} diag OK  method={diag['vision_method']}  load={load}%  {overall}", flush=True)
         return diag
 
 
@@ -347,7 +428,24 @@ def history_one(hid: str):
 @router.get("/screenshot")
 @router.get("/screenshot/{sid}")
 def screenshot(sid: str = None):
-    return JSONResponse({"error": "云端模式无截图，请看 sensors 数值面板"}, status_code=404)
+    name = None
+    if sid:
+        f = HIST_DIR / (os.path.basename(sid) + ".json")
+        if f.exists():
+            try:
+                name = json.loads(f.read_text(encoding="utf-8")).get("screenshot")
+            except Exception:
+                pass
+    elif LATEST.exists():
+        try:
+            name = json.loads(LATEST.read_text(encoding="utf-8")).get("screenshot")
+        except Exception:
+            pass
+    if name:
+        fp = DATA_DIR / "screenshots" / os.path.basename(name)
+        if fp.exists():
+            return FileResponse(str(fp), media_type="image/png", headers={"Cache-Control": "no-store"})
+    return JSONResponse({"error": "screenshot not found"}, status_code=404)
 
 
 @router.get("/health")
@@ -359,6 +457,8 @@ def health():
         "service": "agent_monitor_cloud",
         "interval_sec": INTERVAL,
         "dsr1": bool(_dsr1),
+        "playwright": _playwright_ok(),
+        "last_capture_ok": _last_capture_ok,
         "dom_state_fresh": bool(_dom_state and time.time() - _dom_state.get("_recv_ts", 0) <= DOM_STATE_TTL),
         "latest_exists": LATEST.exists(),
         "diagnosing": active,
