@@ -165,7 +165,7 @@ def capture_panel(load: float, fault: str):
     for args in attempts:
         try:
             with sync_playwright() as pw:
-                browser = pw.chromium.launch(headless=True, channel="chromium", args=args)
+                browser = pw.chromium.launch(headless=True, args=args)
                 try:
                     ctx = browser.new_context(viewport={"width": 1400, "height": 1086})
                     page = ctx.new_page()

@@ -12,10 +12,12 @@ services:
     runtime: python
     plan: free
     rootDir: server
-    buildCommand: pip install -r requirements.txt && python -m playwright install --with-deps chromium
+    buildCommand: pip install -r requirements.txt && python -m playwright install --with-deps chromium-headless-shell
     startCommand: python app.py
     healthCheckPath: /api/list
     envVars:
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /opt/render/project/.pw-browsers
       - key: PYTHON_VERSION
         value: 3.12.8
       - key: SCHOOL_API_BASE
