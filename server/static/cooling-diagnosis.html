@@ -146,7 +146,7 @@ body{font-family:'Inter','Microsoft YaHei','Segoe UI',sans-serif;background:var(
 
 <div class="kb-banner">
   <span class="kb-banner-tag">数据流</span>
-  <span>本页数据由后台视觉智能体 <b style="color:var(--cyan)">agent_vision_monitor.py</b>（<code>127.0.0.1:7864</code>）周期性截取监测面板、调用 DSR1 读图后回写，本页每 30 秒拉取一次 <code>/latest</code>，每 60 秒拉取 <code>/history</code>。诊断推理引用依据限定在 <b style="color:var(--cyan)">MAN 专属 4 库</b> 内。</span>
+  <span>本页数据由云端视觉智能体（<b style="color:var(--cyan)">/agent</b> 同源接口）周期性用 headless Chromium 截取监测面板、调用 DSR1 带图评估后回写，本页每 30 秒拉取一次 <code>/latest</code>，每 60 秒拉取 <code>/history</code>。诊断推理引用依据限定在 <b style="color:var(--cyan)">MAN 专属 4 库</b> 内。</span>
 </div>
 
 <div class="main">
@@ -161,8 +161,8 @@ body{font-family:'Inter','Microsoft YaHei','Segoe UI',sans-serif;background:var(
     <div class="status-item"><span>数据延迟：</span><span class="status-val" id="evalDelay">--</span></div>
     <div class="status-item"><span>识别方式：</span><span class="status-val" id="visMethod">--</span></div>
     <div class="status-item" style="margin-left:auto">
-      <button class="ctrl-btn start" id="btnStart" onclick="startAgent()" title="启动 agent_vision_monitor.py">▶ 启动 Agent</button>
-      <button class="ctrl-btn stop" id="btnStop" onclick="stopAgent()" title="停止视觉智能体服务">■ 停止 Agent</button>
+      <button class="ctrl-btn start" id="btnStart" onclick="startAgent()" title="开启云端诊断循环">▶ 启动 Agent</button>
+      <button class="ctrl-btn stop" id="btnStop" onclick="stopAgent()" title="暂停云端诊断循环">■ 停止 Agent</button>
     </div>
   </div>
 
@@ -174,7 +174,7 @@ body{font-family:'Inter','Microsoft YaHei','Segoe UI',sans-serif;background:var(
       <span class="assess-status unknown" id="assessStatus">等待</span>
     </div>
     <div class="assess-meta" id="assessMeta">尚未拉取到评估数据</div>
-    <div class="assess-text" id="assessText">等待连接视觉智能体服务（127.0.0.1:7864），请启动 agent_vision_monitor.py...</div>
+    <div class="assess-text" id="assessText">等待连接云端视觉智能体服务（/agent），服务唤醒中...</div>
     <div class="assess-concerns" id="assessConcerns"></div>
   </div>
 
@@ -208,7 +208,8 @@ const COOLING_BASELINE = {
   "活塞冷却油出口温度": {unit:"℃", symbol:"tpco",     tolerance:2, values:{25:48.3, 50:54.1, 75:57.6, 90:58.8, 100:59.1, 110:59.8}}
 };
 const LOADS = [25, 50, 75, 90, 100, 110];
-const AI_API = 'http://127.0.0.1:7864';
+const AI_API = '/agent';
+const VIS_METHOD = {vision:'DSR1 真视觉', dom:'读DOM', sim:'云端模拟'};
 let _latestTime = null;
 
 function getBaselineAt(name, load) {
@@ -315,7 +316,7 @@ function setOffline(){
   const se = document.getElementById('assessStatus');
   se.textContent = '离线'; se.className = 'assess-status unknown';
   document.getElementById('assessMeta').textContent = 'agent 未连接，无最新评估';
-  document.getElementById('assessText').textContent = '视觉智能体服务未连接（127.0.0.1:7864），请启动 agent_vision_monitor.py。';
+  document.getElementById('assessText').textContent = '云端视觉智能体服务未连接（/agent），服务可能正在唤醒（免费版冷启动约 1-2 分钟），稍后自动重试。';
   document.getElementById('assessConcerns').innerHTML = '';
   document.getElementById('visionGrid').innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--tx3);padding:20px;text-align:center;background:var(--bg-panel);border:1px dashed var(--border);border-radius:8px">尚无视觉读数（agent 离线）</div>';
   document.getElementById('shotImg').style.display='none';
@@ -331,12 +332,7 @@ function setOffline(){
 async function startAgent(){
   const b = document.getElementById('btnStart');
   b.textContent = '⏳ 启动中...'; b.disabled = true;
-  // 1) 先探 7865 启动器（如存在的话）—— 容忍失败，因为 agent 多数情况已经在跑
-  try{
-    const r = await fetch('http://127.0.0.1:7865/start', {signal: AbortSignal.timeout(8000)});
-    if(r.ok){ await r.json().catch(()=>{}); }
-  }catch(e){ console.warn('[startAgent] 7865 launcher skipped:', e.message); }
-  // 2) 等 AI_API（agent）健康 —— 兼容两种 health 格式：{ok:true} 与 {status:'ok'}
+  // 等 AI_API（agent）健康 —— 兼容两种 health 格式：{ok:true} 与 {status:'ok'}
   let online = false;
   for(let i=0;i<20;i++){
     try{
@@ -393,30 +389,30 @@ function applyData(data){
   document.getElementById('curLoad').textContent = (data.load!=null?data.load:'--') + '%';
   document.getElementById('curTime').textContent = data.time || '--';
   document.getElementById('nextTime').textContent = data.next_check || '--';
-  document.getElementById('visMethod').textContent = data.vision_method==='vision' ? 'DSR1 真视觉' : (data.vision_method||'--');
+  document.getElementById('visMethod').textContent = VIS_METHOD[data.vision_method] || (data.vision_method||'--');
 
   const a = data.assessment || {};
   const statusMap = {'正常':['正常','normal'], '关注':['关注','warn'], '异常':['异常','err'], '等待':['等待','unknown']};
   const [txt, cls] = statusMap[a.overall_status] || ['未知','unknown'];
   const se = document.getElementById('assessStatus');
   se.textContent = txt; se.className = 'assess-status ' + cls;
-  document.getElementById('assessMeta').innerHTML = '<b>'+(a.system||'冷却系统')+'</b> · 负载 <b>'+(data.load||'--')+'%</b> · 识别方式 <b>'+(data.vision_method==='vision'?'DSR1 真视觉':(data.vision_method||'读DOM'))+'</b> · 时间 <b>'+(data.time||'--')+'</b>';
+  document.getElementById('assessMeta').innerHTML = '<b>'+(a.system||'冷却系统')+'</b> · 负载 <b>'+(data.load||'--')+'%</b> · 识别方式 <b>'+(VIS_METHOD[data.vision_method]||data.vision_method||'--')+'</b> · 时间 <b>'+(data.time||'--')+'</b>';
   document.getElementById('assessText').textContent = a.assessment || '尚无评估';
   const ce = document.getElementById('assessConcerns');
   ce.innerHTML = (a.concerns && a.concerns.length) ? a.concerns.map(c=>'<div class="assess-concern">⚠ '+c+'</div>').join('') : '';
 
   renderVisionCards(data.sensors||{}, data.load);
 
-  // 截图：相对路径（与本 html 同目录，自动定位 screenshots/ 子目录）
+  // 截图：走云端 /agent/screenshot（返回最新诊断的 PNG）
   if(data.screenshot){
     const fp = String(data.screenshot).replace(/\\/g,'/');
-    const fname = fp.split('/').pop();
     const img = document.getElementById('shotImg');
     const empty = document.getElementById('shotEmpty');
-    img.src = 'http://127.0.0.1:7864/screenshots/' + fname + '?t=' + Date.now();
+    img.src = AI_API + '/screenshot?t=' + Date.now();
     img.style.display = 'block';
     empty.style.display = 'none';
     document.getElementById('shotPath').textContent = fp;
+    img.onerror = function(){ img.style.display='none'; empty.style.display='flex'; };
   }else{
     document.getElementById('shotImg').style.display='none';
     document.getElementById('shotEmpty').style.display='flex';
