@@ -44,6 +44,13 @@ _PW_BROWSERS = Path(__file__).parent / ".pw-browsers"
 if os.name != "nt" and "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(_PW_BROWSERS)
 
+# 容器缺中文字体时运行时自装（headless 截图中文渲染用）
+FONT_FILE = Path(__file__).parent / ".fonts" / "NotoSansCJKsc-Regular.otf"
+FONT_URLS = [
+    "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+    "https://cdn.jsdelivr.net/gh/notofonts/noto-cjk@main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+]
+
 INTERVAL = int(os.environ.get("AGENT_INTERVAL", "300"))
 DOM_STATE_TTL = 60          # 浏览器 DOM 状态超过 60s 视为过期，回落到模拟器
 HISTORY_KEEP = 50
@@ -370,25 +377,56 @@ def run_once():
         return diag
 
 
+def _ensure_cjk_font():
+    """容器无 CJK 字体时下载 Noto Sans SC 到 fontconfig 用户目录（截图中文不再显示方块）。"""
+    if os.name == "nt" or FONT_FILE.exists():
+        return
+    import urllib.request
+    FONT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    for url in FONT_URLS:
+        try:
+            print(f"[agent] 下载中文字体 {url.rsplit('/', 1)[-1]}（约16MB，仅首次）...", flush=True)
+            urllib.request.urlretrieve(url, FONT_FILE)
+            if FONT_FILE.stat().st_size > 1_000_000:
+                break
+            FONT_FILE.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"[agent] 字体下载失败: {e}", flush=True)
+    if not FONT_FILE.exists():
+        return
+    try:
+        import shutil
+        import subprocess
+        home_fonts = Path(os.path.expanduser("~")) / ".fonts"
+        home_fonts.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(FONT_FILE, home_fonts / FONT_FILE.name)
+        subprocess.run(["fc-cache", "-f"], capture_output=True, timeout=120)
+        print("[agent] 中文字体已安装", flush=True)
+    except Exception as e:
+        print(f"[agent] 字体安装到 fontconfig 失败: {e}", flush=True)
+
+
 def _ensure_browser():
-    """Linux 容器启动时后台下载 headless shell（构建时装在构建用户目录，运行时不可见）。"""
+    """Linux 容器启动时后台下载 headless shell 与中文字体（构建时装在构建用户目录，运行时不可见）。"""
     if os.name == "nt":
         return
+    installed = False
     try:
         import subprocess
         import sys
-        if any(_PW_BROWSERS.glob("chromium*")):
-            return
-        print("[agent] 运行时下载 chromium-headless-shell（约90MB，仅首次）...", flush=True)
-        r = subprocess.run(
-            [sys.executable, "-m", "playwright", "install", "chromium-headless-shell"],
-            capture_output=True, text=True, timeout=600,
-        )
-        print(f"[agent] 浏览器下载 rc={r.returncode} {(r.stdout or r.stderr or '')[-300:]}", flush=True)
-        if r.returncode == 0 and any(_PW_BROWSERS.glob("chromium*")):
-            threading.Thread(target=run_once, daemon=True).start()
+        if not any(_PW_BROWSERS.glob("chromium*")):
+            print("[agent] 运行时下载 chromium-headless-shell（约90MB，仅首次）...", flush=True)
+            r = subprocess.run(
+                [sys.executable, "-m", "playwright", "install", "chromium-headless-shell"],
+                capture_output=True, text=True, timeout=600,
+            )
+            print(f"[agent] 浏览器下载 rc={r.returncode} {(r.stdout or r.stderr or '')[-300:]}", flush=True)
+            installed = r.returncode == 0 and any(_PW_BROWSERS.glob("chromium*"))
     except Exception as e:
         print(f"[agent] 浏览器运行时安装失败: {type(e).__name__}: {str(e)[:200]}", flush=True)
+    _ensure_cjk_font()
+    if installed:
+        threading.Thread(target=run_once, daemon=True).start()
 
 
 def _scheduler():
@@ -499,6 +537,7 @@ def health():
         "dsr1": bool(_dsr1),
         "playwright": _playwright_ok(),
         "browsers_dir": any(_PW_BROWSERS.glob("chromium*")) if os.name != "nt" else True,
+        "cjk_font": True if os.name == "nt" else FONT_FILE.exists(),
         "last_capture_ok": _last_capture_ok,
         "last_capture_err": _last_capture_err,
         "dom_state_fresh": bool(_dom_state and time.time() - _dom_state.get("_recv_ts", 0) <= DOM_STATE_TTL),

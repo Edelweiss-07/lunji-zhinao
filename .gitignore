@@ -18,3 +18,4 @@ _edge_tmp_*/
 backup_*
 server/agent_data/
 .pw-browsers/
+server/.fonts/
