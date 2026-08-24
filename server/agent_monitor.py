@@ -38,6 +38,12 @@ HIST_DIR = DATA_DIR / "history"
 LATEST = DATA_DIR / "latest_diagnosis.json"
 INDEX = HIST_DIR / "index.json"
 
+# Linux 容器（Render）：构建与运行时用户缓存目录不一致，浏览器二进制统一放项目目录。
+# 必须在 playwright 首次启动 driver 前设置。
+_PW_BROWSERS = Path(__file__).parent / ".pw-browsers"
+if os.name != "nt" and "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(_PW_BROWSERS)
+
 INTERVAL = int(os.environ.get("AGENT_INTERVAL", "300"))
 DOM_STATE_TTL = 60          # 浏览器 DOM 状态超过 60s 视为过期，回落到模拟器
 HISTORY_KEEP = 50
@@ -364,6 +370,27 @@ def run_once():
         return diag
 
 
+def _ensure_browser():
+    """Linux 容器启动时后台下载 headless shell（构建时装在构建用户目录，运行时不可见）。"""
+    if os.name == "nt":
+        return
+    try:
+        import subprocess
+        import sys
+        if any(_PW_BROWSERS.glob("chromium*")):
+            return
+        print("[agent] 运行时下载 chromium-headless-shell（约90MB，仅首次）...", flush=True)
+        r = subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "chromium-headless-shell"],
+            capture_output=True, text=True, timeout=600,
+        )
+        print(f"[agent] 浏览器下载 rc={r.returncode} {(r.stdout or r.stderr or '')[-300:]}", flush=True)
+        if r.returncode == 0 and any(_PW_BROWSERS.glob("chromium*")):
+            threading.Thread(target=run_once, daemon=True).start()
+    except Exception as e:
+        print(f"[agent] 浏览器运行时安装失败: {type(e).__name__}: {str(e)[:200]}", flush=True)
+
+
 def _scheduler():
     time.sleep(3)
     while True:
@@ -384,6 +411,7 @@ def start_agent():
             return
         _thread_started = True
     threading.Thread(target=_scheduler, daemon=True, name="agent-monitor").start()
+    threading.Thread(target=_ensure_browser, daemon=True, name="agent-browser-install").start()
     print(f"[agent] 云端诊断智能体已启动（间隔 {INTERVAL}s，DSR1={'已配置' if _dsr1 else '未配置(模板兜底)'}）", flush=True)
 
 
@@ -470,6 +498,7 @@ def health():
         "interval_sec": INTERVAL,
         "dsr1": bool(_dsr1),
         "playwright": _playwright_ok(),
+        "browsers_dir": any(_PW_BROWSERS.glob("chromium*")) if os.name != "nt" else True,
         "last_capture_ok": _last_capture_ok,
         "last_capture_err": _last_capture_err,
         "dom_state_fresh": bool(_dom_state and time.time() - _dom_state.get("_recv_ts", 0) <= DOM_STATE_TTL),
