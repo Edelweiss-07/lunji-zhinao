@@ -118,6 +118,7 @@ _sim = _Sim()
 
 # ===== 云端真实截图（headless Chromium 渲染 cooling-system.html 并截屏） =====
 _last_capture_ok = None  # None=未尝试 True/False=最近一次结果
+_last_capture_err = ""
 
 
 def _playwright_ok():
@@ -139,11 +140,12 @@ def _prune_shots(shots_dir: Path, keep: int = 10):
 
 def capture_panel(load: float, fault: str):
     """headless Chromium 打开冷却面板页面真实截图；失败返回 None（回退无截图模式）。"""
-    global _last_capture_ok
+    global _last_capture_ok, _last_capture_err
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         _last_capture_ok = False
+        _last_capture_err = "playwright not installed"
         return None
     shots_dir = DATA_DIR / "screenshots"
     shots_dir.mkdir(parents=True, exist_ok=True)
@@ -152,32 +154,42 @@ def capture_panel(load: float, fault: str):
     port = os.environ.get("PORT", "10000")
     url = (f"http://127.0.0.1:{port}/static/cooling-system.html"
            f"?mode=manual&load={load}&fault={fault}")
-    try:
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True, args=[
-                "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
-                "--disable-extensions", "--hide-scrollbars",
-                "--single-process", "--disable-software-rasterizer",
-            ])
-            try:
-                ctx = browser.new_context(viewport={"width": 1400, "height": 1086})
-                page = ctx.new_page()
-                page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                page.wait_for_timeout(2500)
-                page.screenshot(path=str(path))
-            finally:
+    base_args = ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
+                 "--disable-extensions", "--hide-scrollbars"]
+    # 策略1：省内存参数（512MB 小容器优先）；失败自动降级策略2：常规参数
+    attempts = [
+        base_args + ["--single-process", "--disable-software-rasterizer"],
+        base_args,
+    ]
+    last_err = ""
+    for args in attempts:
+        try:
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(headless=True, args=args)
                 try:
-                    browser.close()
-                except Exception:
-                    pass
-        if path.exists() and path.stat().st_size > 0:
-            _prune_shots(shots_dir)
-            _last_capture_ok = True
-            print(f"[agent] 云端截图 OK {path.name} size={path.stat().st_size}", flush=True)
-            return path
-    except Exception as e:
-        print(f"[agent] 云端截图失败（回退无截图模式）: {type(e).__name__}: {str(e)[:200]}", flush=True)
+                    ctx = browser.new_context(viewport={"width": 1400, "height": 1086})
+                    page = ctx.new_page()
+                    page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                    page.wait_for_timeout(3000)
+                    page.screenshot(path=str(path))
+                finally:
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+            if path.exists() and path.stat().st_size > 0:
+                _prune_shots(shots_dir)
+                _last_capture_ok = True
+                _last_capture_err = ""
+                print(f"[agent] 云端截图 OK {path.name} size={path.stat().st_size}", flush=True)
+                return path
+            last_err = f"screenshot empty file (args={args[-1] if '--single-process' in args else 'base'})"
+        except Exception as e:
+            last_err = f"{type(e).__name__}: {str(e)[:200]}"
+            print(f"[agent] 截图尝试失败（{last_err}）", flush=True)
     _last_capture_ok = False
+    _last_capture_err = last_err
+    print(f"[agent] 云端截图失败（回退无截图模式）: {last_err}", flush=True)
     return None
 
 # ===== 浏览器 DOM 真实值缓存 =====
@@ -459,6 +471,7 @@ def health():
         "dsr1": bool(_dsr1),
         "playwright": _playwright_ok(),
         "last_capture_ok": _last_capture_ok,
+        "last_capture_err": _last_capture_err,
         "dom_state_fresh": bool(_dom_state and time.time() - _dom_state.get("_recv_ts", 0) <= DOM_STATE_TTL),
         "latest_exists": LATEST.exists(),
         "diagnosing": active,
