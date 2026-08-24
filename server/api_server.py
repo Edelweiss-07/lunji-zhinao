@@ -32,8 +32,12 @@ from visualizer_core import (
     _safe_history_path,
 )
 
+from agent_monitor import router as agent_router, start_agent
+
 app = FastAPI(title="Marine Engine AI API")
 
+app.include_router(agent_router)
+start_agent()
 
 app.add_middleware(
     CORSMiddleware,

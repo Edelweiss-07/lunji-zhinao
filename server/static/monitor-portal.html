@@ -512,8 +512,8 @@ async function checkGradioServer() {
   }
 }
 
-// ===== 智能体视觉诊断 =====
-const AI_API = 'http://127.0.0.1:7864';
+// ===== 智能体视觉诊断（云端同源 /agent，无需本地服务） =====
+const AI_API = '/agent';
 
 async function fetchLatestDiagnosis() {
   try {
@@ -521,7 +521,7 @@ async function fetchLatestDiagnosis() {
     const data = await resp.json();
     renderAIDiagnosis(data, false);
   } catch(e) {
-    document.getElementById('aiDiagBody').innerHTML = '<div style="text-align:center;color:var(--red);padding:30px">智能体服务未连接 <span style="font-size:12px">(127.0.0.1:7864)</span><br><span style="font-size:11px;color:var(--tx3)">请启动 agent_vision_monitor.py</span></div>';
+    document.getElementById('aiDiagBody').innerHTML = '<div style="text-align:center;color:var(--red);padding:30px">云端智能体服务未连接<br><span style="font-size:11px;color:var(--tx3)">服务唤醒中或暂时不可用，稍后自动重试</span></div>';
     document.getElementById('aiBadge').textContent = '离线';
     document.getElementById('aiBadge').className = 'sec-badge err';
   }
@@ -542,7 +542,7 @@ function renderAIDiagnosis(data, isHistory) {
   html += '<div style="margin-bottom:12px;text-align:center"><img src="' + shotSrc + '" style="max-width:100%;border:1px solid var(--border);border-radius:8px" alt="智能体截图" onerror="this.style.display=\'none\'"></div>';
 
   html += '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">';
-  html += '<div style="font-size:12px;color:var(--cyan);margin-bottom:6px">视觉评估 · ' + (assess.system||'未知') + ' · 负载' + (data.load||'?') + '% · ' + (data.vision_method==='vision'?'DSR1真视觉':'读DOM') + '</div>';
+  html += '<div style="font-size:12px;color:var(--cyan);margin-bottom:6px">视觉评估 · ' + (assess.system||'未知') + ' · 负载' + (data.load||'?') + '% · ' + ({vision:'DSR1真视觉', dom:'读DOM', sim:'云端模拟'}[data.vision_method]||data.vision_method||'-') + '</div>';
   html += '<div style="font-size:13px;color:var(--tx);line-height:1.6">' + (assess.assessment||'--') + '</div>';
   if (assess.concerns && assess.concerns.length) {
     html += '<div style="margin-top:8px;font-size:12px;color:var(--yellow)">关注点：' + assess.concerns.map(c=>'·'+c).join(' ') + '</div>';
@@ -707,7 +707,7 @@ async function init() {
 
   const gradioOk = await checkGradioServer();
 
-  addLog('INFO', 'AI', '连接智能体视觉诊断服务 (7864)...');
+  addLog('INFO', 'AI', '连接云端智能体诊断服务 (/agent)...');
   fetchLatestDiagnosis();
   fetchHistory();
   setInterval(fetchLatestDiagnosis, 30000);

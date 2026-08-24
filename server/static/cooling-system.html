@@ -450,13 +450,12 @@ function tick() {
   updateSensors();
   updateLoadDisplay();
   renderParams();
-  // 把当前真实值 POST 给 agent（解决视觉模型读数误差问题）
+  // 把当前真实值 POST 给云端诊断智能体（同源 /agent/__state，解决视觉模型读数误差问题）
   try {
-    fetch('http://127.0.0.1:7864/__state', {
+    fetch('/agent/__state', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({load: +realLoad.toFixed(2), sensors: sensorValues, mode: mode, fault: faultMode, frozen: faultActive, ts: Date.now()}),
-      mode: 'cors',
     }).catch(()=>{});
   } catch(e) {}
 }
