@@ -14,6 +14,10 @@
   Python 按 KB 基准插值判定各参数状态（正常/超容差/严重超差）→
   DSR1 直连云端 API 撰写工况评估文（未配置密钥时用本地模板兜底）→
   写 latest_diagnosis.json + history/<id>.json + history/index.json
+
+企业微信推送：
+  检测到异常参数 → 即时推送完整告警（含诊断结论）
+  每 30 分钟 → 汇总最近诊断记录推送
 """
 import os
 import base64
@@ -59,6 +63,16 @@ DSR1_API_BASE = os.environ.get("DSR1_API_BASE", "https://chat.cqjtu.edu.cn/ds/ap
 DSR1_API_KEY = os.environ.get("DSR1_API_KEY", "")
 DSR1_MODEL = os.environ.get("DSR1_MODEL", "doubao-2.0-pro")
 _dsr1 = OpenAI(base_url=DSR1_API_BASE, api_key=DSR1_API_KEY) if DSR1_API_KEY else None
+
+# 企业微信推送配置（群机器人 webhook）
+# 获取：企业微信 App/PC → 进入群 → 群设置 → 群机器人 → 添加机器人 → 复制 Webhook 地址
+# 形如 https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxx
+WECOM_WEBHOOK_URL = os.environ.get(
+    "WECOM_WEBHOOK_URL",
+    "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=620d3a68-76e4-41fb-9df9-9e821ab313a9",
+)
+SUMMARY_INTERVAL_SEC = int(os.environ.get("SUMMARY_INTERVAL_SEC", "1800"))  # 每 30 分钟汇总一次
+SUMMARY_LOOKBACK = 6        # 汇总最近 6 条诊断记录
 
 router = APIRouter(prefix="/agent")
 
@@ -341,6 +355,24 @@ def _save(diag):
     INDEX.write_text(json.dumps(idx[:HISTORY_KEEP], ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _collect_anomalies(load, sensors):
+    """从判定结果中提取超容差/严重超差参数，用于企业微信告警。"""
+    anomalies = []
+    for name, s in sensors.items():
+        if s.get("status") in ("超容差", "严重超差") and s.get("value") is not None:
+            base = get_baseline(name, load)
+            anomalies.append({
+                "param": name,
+                "system": s.get("system", "冷却"),
+                "value": s["value"],
+                "unit": s.get("unit", ""),
+                "baseline": base,
+                "delta": round(s["value"] - base, 2),
+                "tolerance": COOLING_BASELINE[name]["tolerance"],
+            })
+    return anomalies
+
+
 def run_once():
     with _run_lock:
         load, raw_sensors, source = _collect_readings()
@@ -352,6 +384,7 @@ def run_once():
         img = capture_panel(load, fault)
         sensors, concerns, overall = _judge(load, raw_sensors)
         now = datetime.datetime.now()
+        anomalies = _collect_anomalies(load, sensors)
         diag = {
             "id": now.strftime("%Y%m%d_%H%M%S"),
             "time": now.strftime("%Y-%m-%d %H:%M:%S"),
@@ -364,7 +397,7 @@ def run_once():
                 "assessment": _assessment_text(load, sensors, concerns, overall, img_path=img),
                 "concerns": concerns,
             },
-            "anomalies": [],
+            "anomalies": anomalies,
             "diagnosis": None,
             "vision_method": "vision" if img else source,   # vision=云端截图+DSR1 / dom=读DOM / sim=云端模拟器
             "kb_sources": ["温度监测", "负载指数"],
@@ -374,6 +407,11 @@ def run_once():
         }
         _save(diag)
         print(f"[agent] {diag['time']} diag OK  method={diag['vision_method']}  load={load}%  {overall}", flush=True)
+        if anomalies:
+            try:
+                push_alert_wecom(load, anomalies, diag)
+            except Exception as e:
+                print(f"[agent] 企业微信告警推送失败: {e}", flush=True)
         return diag
 
 
@@ -450,7 +488,124 @@ def start_agent():
         _thread_started = True
     threading.Thread(target=_scheduler, daemon=True, name="agent-monitor").start()
     threading.Thread(target=_ensure_browser, daemon=True, name="agent-browser-install").start()
+    threading.Thread(target=summary_loop, daemon=True, name="agent-wecom-summary").start()
     print(f"[agent] 云端诊断智能体已启动（间隔 {INTERVAL}s，DSR1={'已配置' if _dsr1 else '未配置(模板兜底)'}）", flush=True)
+
+
+# ===== 企业微信推送（直连群机器人 webhook） =====
+def send_wecom_markdown(content):
+    """发送 markdown 消息到企业微信群机器人"""
+    if not WECOM_WEBHOOK_URL:
+        print("[agent] 企业微信 webhook 未配置，跳过推送", flush=True)
+        return False
+    import urllib.request
+    message = {"msgtype": "markdown", "markdown": {"content": content}}
+    data = json.dumps(message, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        WECOM_WEBHOOK_URL, data=data,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            if result.get("errcode") == 0:
+                print("[agent] ✓ 企业微信推送成功", flush=True)
+                return True
+            else:
+                print(f"[agent] ✗ 企业微信返回错误：{result}", flush=True)
+                return False
+    except Exception as e:
+        print(f"[agent] ✗ 企业微信推送异常：{e}", flush=True)
+        return False
+
+
+def build_alert_markdown(load, anomalies, diag):
+    """构造异常即时推送的 markdown 内容（完整异常 + 诊断结论 + 建议）"""
+    lines = [
+        "## 🚨 轮机异常告警",
+        f"> **时间**：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"> **主机负载**：{load}%",
+        "",
+        "**异常参数：**",
+    ]
+    for a in anomalies:
+        lines.append(
+            f"- {a['param']}（{a['system']}）：当前 **{a['value']}{a['unit']}**，"
+            f"基准 {a['baseline']}{a['unit']}，偏差 {a['delta']:+.1f}{a['unit']}（容差 ±{a['tolerance']}{a['unit']}）"
+        )
+    if diag and diag.get("assessment", {}).get("assessment"):
+        lines.append("")
+        lines.append("**诊断结论：**")
+        lines.append(diag["assessment"]["assessment"][:300])
+    return "\n".join(lines)
+
+
+def push_alert_wecom(load, anomalies, diag):
+    """异常即时推：完整诊断 markdown → 企业微信群"""
+    return send_wecom_markdown(build_alert_markdown(load, anomalies, diag))
+
+
+def build_summary_markdown(records):
+    """从最近诊断记录生成汇总报告 markdown"""
+    if not records:
+        return None
+    total = len(records)
+    abnormal = [r for r in records if r.get("status") == "abnormal"]
+    normal = total - len(abnormal)
+    start_t = records[-1].get("time", "?")[11:16] if records[-1].get("time") else "?"
+    end_t = records[0].get("time", "?")[11:16] if records[0].get("time") else "?"
+
+    lines = [
+        "## 📊 轮机智脑 · 监控汇总",
+        f"> **时间范围**：{start_t} - {end_t}",
+        f"> **检测次数**：{total} 次（正常 {normal} / 异常 {len(abnormal)}）",
+        "",
+    ]
+
+    if abnormal:
+        lines.append("**异常记录：**")
+        for r in abnormal:
+            t = (r.get("time") or "")[11:16]
+            load = r.get("load", "?")
+            ssum = r.get("sensors_summary", [])
+            bad = [s for s in ssum if s.get("status") in ("超容差", "严重超差")]
+            if bad:
+                desc = "；".join(f"{s['name']} {s['value']}{s.get('unit', '')}" for s in bad[:4])
+            else:
+                desc = r.get("overall_status", "异常")
+            lines.append(f"- {t} 负载{load}%：{desc}")
+        lines.append("")
+        lines.append("⚠️ **当前存在异常，请及时查看监控台处理**")
+    else:
+        lines.append("✅ **最近一段时间全部正常，各参数均在知识库容差范围内**")
+        lines.append("")
+        latest = records[0]
+        if latest.get("load") is not None:
+            lines.append(f"最新状态：负载 {latest['load']}%，{latest.get('overall_status', '正常')}")
+
+    return "\n".join(lines)
+
+
+def summary_loop():
+    """定时汇总线程：每 SUMMARY_INTERVAL_SEC 秒汇总最近记录并推送"""
+    print(f"[agent] 定时汇总已启动：每 {SUMMARY_INTERVAL_SEC // 60} 分钟推送一次", flush=True)
+    while True:
+        time.sleep(SUMMARY_INTERVAL_SEC)
+        try:
+            if not INDEX.exists():
+                print("[agent] 汇总跳过：暂无历史记录", flush=True)
+                continue
+            index = json.loads(INDEX.read_text(encoding="utf-8"))
+            records = index[:SUMMARY_LOOKBACK]
+            if not records:
+                continue
+            content = build_summary_markdown(records)
+            if not content:
+                continue
+            if send_wecom_markdown(content):
+                print(f"[agent] ✓ 已推送定时汇总（{len(records)} 条记录）", flush=True)
+        except Exception as e:
+            print(f"[agent] ✗ 定时汇总推送失败: {e}", flush=True)
 
 
 # ===== HTTP 接口（同源挂载，前缀 /agent） =====
