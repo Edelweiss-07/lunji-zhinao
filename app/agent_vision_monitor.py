@@ -30,7 +30,7 @@ from openai import OpenAI
 # 所有运行时产物都放在脚本同级的 data/ 下，保证可移植（拷到任何机器都能跑）
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-PANEL_URL = "http://127.0.0.1:7862/static/cooling-system.html"  # 截用户实际看到的页面（http 协议下 fetch 7864 才不被 CORS 拦）
+PANEL_URL = os.environ.get("PANEL_URL", "http://127.0.0.1:7862/static/cooling-system.html")  # 截用户实际看到的页面（http 协议下 fetch 7864 才不被 CORS 拦）
 SCREENSHOT_DIR = os.path.join(DATA_DIR, "screenshots")
 RESULT_FILE = os.path.join(DATA_DIR, "latest_diagnosis.json")
 HISTORY_DIR = os.path.join(DATA_DIR, "history")
@@ -39,6 +39,14 @@ HISTORY_MAX = 200  # 最多保留 200 条历史
 INTERVAL_SEC = 300  # 5 分钟
 MAX_SCREENSHOTS = 50  # 截图目录最多保留最近 50 张，旧的自动删除
 HTTP_PORT = 7864
+
+# 企业微信推送配置（群机器人 webhook）
+# 获取：企业微信 App/PC → 进入群 → 群设置 → 群机器人 → 添加机器人 → 复制 Webhook 地址
+# 形如 https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxx
+WECOM_WEBHOOK_URL = os.environ.get(
+    "WECOM_WEBHOOK_URL",
+    "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=620d3a68-76e4-41fb-9df9-9e821ab313a9",
+)
 
 # 确保运行时目录存在（可移植，不依赖绝对路径）
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -690,33 +698,128 @@ def start_http_server():
     server.serve_forever()
 
 
-# ===== 5. 推送到 alert_bridge（Server酱） =====
-def push_to_alert_bridge(anomalies, diagnosis):
-    """有异常时推送到 alert_bridge.py（7863）→ Server酱"""
+# ===== 5. 企业微信推送（直连群机器人 webhook，不走 7863） =====
+def send_wecom_markdown(content):
+    """发送 markdown 消息到企业微信群机器人"""
+    if not WECOM_WEBHOOK_URL:
+        log.warning("企业微信 webhook 未配置，跳过推送")
+        return False
+    message = {"msgtype": "markdown", "markdown": {"content": content}}
+    data = json.dumps(message, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(
+        WECOM_WEBHOOK_URL, data=data,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
     try:
-        import urllib.request
-        # 取最严重的异常（按偏差超出容差的倍数排序，与知识库绝对容差同单位）
-        worst = max(anomalies, key=lambda a: abs(a["delta"]) / a["tolerance"] if a["tolerance"] else 0)
-        level = "hh" if (worst["tolerance"] and abs(worst["delta"]) > worst["tolerance"] * 1.5) else "h"
-        alert_data = json.dumps({
-            "sensorName": worst["param"],
-            "sensorSymbol": "",
-            "level": level,
-            "value": f"{worst['value']}{worst['unit']}(偏差{worst['delta']:+.1f})",
-            "unit": "",
-            "system": worst["system"],
-            "time": datetime.now().strftime("%H:%M:%S"),
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "http://127.0.0.1:7863/alert",
-            data=alert_data,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        urllib.request.urlopen(req, timeout=5)
-        log.info("已推送到 alert_bridge → Server酱")
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            if result.get("errcode") == 0:
+                log.info("✓ 企业微信推送成功")
+                return True
+            else:
+                log.error(f"✗ 企业微信返回错误：{result}")
+                return False
     except Exception as e:
-        log.warning(f"推送 alert_bridge 失败（服务可能未启动）: {e}")
+        log.error(f"✗ 企业微信推送异常：{e}")
+        return False
+
+
+def build_alert_markdown(load, anomalies, diagnosis):
+    """构造异常即时推送的 markdown 内容（完整异常 + 诊断结论 + 建议）"""
+    lines = [
+        "## 🚨 轮机异常告警",
+        f"> **时间**：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"> **主机负载**：{load}%",
+        "",
+        "**异常参数：**",
+    ]
+    for a in anomalies:
+        lines.append(
+            f"- {a['param']}（{a['system']}）：当前 **{a['value']}{a['unit']}**，"
+            f"基准 {a['baseline']}{a['unit']}，偏差 {a['delta']:+.1f}{a['unit']}（容差 ±{a['tolerance']}{a['unit']}）"
+        )
+    if diagnosis and diagnosis.get("conclusions"):
+        lines.append("")
+        lines.append("**诊断结论：**")
+        for c in diagnosis["conclusions"][:3]:
+            lines.append(f"- {c.get('diagnosis', '')}（置信度 {c.get('confidence', 0)}%）")
+        if diagnosis.get("recommendation"):
+            lines.append("")
+            lines.append(f"**处置建议**：{diagnosis['recommendation']}")
+    return "\n".join(lines)
+
+
+def push_alert_wecom(load, anomalies, diagnosis):
+    """异常即时推：完整诊断 markdown → 企业微信群"""
+    return send_wecom_markdown(build_alert_markdown(load, anomalies, diagnosis))
+
+
+# ===== 5.5 定时汇总推送 =====
+SUMMARY_INTERVAL_SEC = 1800  # 每 30 分钟汇总一次
+SUMMARY_LOOKBACK = 6        # 汇总最近 6 条诊断记录（30 分钟 / 5 分钟间隔）
+
+
+def build_summary_markdown(records):
+    """从最近诊断记录生成汇总报告 markdown"""
+    if not records:
+        return None
+    total = len(records)
+    abnormal = [r for r in records if r.get("status") == "abnormal"]
+    normal = total - len(abnormal)
+    start_t = records[-1].get("time", "?")[11:16] if records[-1].get("time") else "?"
+    end_t = records[0].get("time", "?")[11:16] if records[0].get("time") else "?"
+
+    lines = [
+        "## 📊 轮机智脑 · 监控汇总",
+        f"> **时间范围**：{start_t} - {end_t}",
+        f"> **检测次数**：{total} 次（正常 {normal} / 异常 {len(abnormal)}）",
+        "",
+    ]
+
+    if abnormal:
+        lines.append("**异常记录：**")
+        for r in abnormal:
+            t = (r.get("time") or "")[11:16]
+            load = r.get("load", "?")
+            anoms = r.get("anomalies", [])
+            if anoms:
+                desc = "；".join(f"{a['param']} {a['value']}{a['unit']}(偏差{a['delta']:+.1f})" for a in anoms[:4])
+            else:
+                desc = r.get("overall_status", "异常")
+            lines.append(f"- {t} 负载{load}%：{desc}")
+        lines.append("")
+        lines.append("⚠️ **当前存在异常，请及时查看监控台处理**")
+    else:
+        lines.append("✅ **最近一段时间全部正常，各参数均在知识库容差范围内**")
+        lines.append("")
+        latest = records[0]
+        if latest.get("load") is not None:
+            lines.append(f"最新状态：负载 {latest['load']}%，{latest.get('overall_status', '正常')}")
+
+    return "\n".join(lines)
+
+
+def summary_loop():
+    """定时汇总线程：每 SUMMARY_INTERVAL_SEC 秒汇总最近记录并推送"""
+    log.info(f"定时汇总已启动：每 {SUMMARY_INTERVAL_SEC // 60} 分钟推送一次")
+    while True:
+        time.sleep(SUMMARY_INTERVAL_SEC)
+        try:
+            if not os.path.exists(HISTORY_INDEX):
+                log.warning("汇总跳过：暂无历史记录")
+                continue
+            with open(HISTORY_INDEX, "r", encoding="utf-8") as f:
+                index = json.load(f)
+            records = index[:SUMMARY_LOOKBACK]
+            if not records:
+                continue
+            content = build_summary_markdown(records)
+            if not content:
+                continue
+            if send_wecom_markdown(content):
+                log.info(f"✓ 已推送定时汇总（{len(records)} 条记录）")
+        except Exception as e:
+            log.warning(f"✗ 定时汇总推送失败: {e}")
 
 
 # ===== 6. 主循环 =====
@@ -794,9 +897,9 @@ async def monitor_loop():
                 json.dump(save, f, ensure_ascii=False, indent=2)
             archive_history(record_id, LATEST_RESULT)
 
-            # 6. 推送（有异常时）
+            # 6. 推送（有异常时，完整诊断 → 企业微信）
             if anomalies and diagnosis:
-                push_to_alert_bridge(anomalies, diagnosis)
+                push_alert_wecom(load, anomalies, diagnosis)
 
         except Exception as e:
             log.error(f"检测异常: {e}")
@@ -812,6 +915,10 @@ def main():
     http_thread = threading.Thread(target=start_http_server, daemon=True)
     http_thread.start()
     log.info(f"HTTP 服务已启动: http://127.0.0.1:{HTTP_PORT}")
+
+    # 启动定时汇总推送线程（每 30 分钟）
+    summary_thread = threading.Thread(target=summary_loop, daemon=True)
+    summary_thread.start()
 
     # 启动监控主循环
     asyncio.run(monitor_loop())

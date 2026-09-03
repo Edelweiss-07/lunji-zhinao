@@ -19,9 +19,10 @@ cd /app/app
 mkdir -p data history_data output
 
 echo ">>> [boot] 启动视觉诊断 Agent (7864) — /ai/* 上游"
+export PANEL_URL="http://127.0.0.1:${PORT}/static/cooling-system.html"
 python3 agent_vision_monitor.py > /tmp/agent.log 2>&1 &
 AGENT_PID=$!
-echo "    Agent PID=$AGENT_PID"
+echo "    Agent PID=$AGENT_PID (PANEL_URL=$PANEL_URL)"
 
 echo ">>> [boot] 启动 Gradio 演示 (7861) — /demo/* 上游"
 export GRADIO_ROOT_PATH=/demo

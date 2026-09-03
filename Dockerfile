@@ -5,6 +5,7 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1
 ENV TZ=Asia/Shanghai
 ENV GRADIO_ANALYTICS_ENABLED=False
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 WORKDIR /app
 
@@ -13,7 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
-RUN python3 -m pip install --no-cache-dir -r requirements.txt
+RUN python3 -m pip install --no-cache-dir -r requirements.txt \
+    && python3 -m playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY app/ ./app/
 COPY start.sh ./
