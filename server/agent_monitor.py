@@ -36,6 +36,14 @@ from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from openai import OpenAI
 
+# 强制容器时区为北京时间（Render 默认 UTC，否则页面延迟显示与微信推送时间会差 8 小时）
+if os.name != "nt":
+    os.environ.setdefault("TZ", "Asia/Shanghai")
+    try:
+        time.tzset()
+    except AttributeError:
+        pass
+
 # ===== 配置 =====
 DATA_DIR = Path(__file__).parent / "agent_data"
 HIST_DIR = DATA_DIR / "history"
