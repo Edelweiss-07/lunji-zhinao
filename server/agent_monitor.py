@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-轮机智脑 · 冷却系统 智能体监控服务（云端版）
+轮机智脑 · 冷却/油耗 双面板 智能体监控服务（云端版）
 
 取代本地 agent_vision_monitor.py(7864)：不再依赖本地截图与本地 Gradio，
 全部逻辑跑在 Render 服务进程内，通过同源路由 /agent/* 对外提供服务。
 
+支持面板（PANELS）：
+  - cooling：冷却系统（淡水进水温度 / 缸套水出水温度 / 冷却淡水出水温度 / 活塞冷却油出口温度）
+  - fuel   ：油耗系统（修正后燃油消耗率 / 燃油消耗量 / 扫气压力 / 增压器转速）
+
 数据来源（优先级）：
-  1. 浏览器 DOM 真实值 —— cooling-system.html 每 1s POST /agent/__state
-  2. 云端模拟器 —— 移植自 cooling-system.html 的负载漂移 + 传感器噪声 +
-     故障注入逻辑，无人打开页面时也能持续产出诊断
+  1. 浏览器 DOM 真实值 —— cooling-system.html / fuel-system.html 每 1s POST /agent/__state（带 panel）
+  2. 云端模拟器 —— 移植自面板页的负载漂移 + 传感器噪声 + 故障注入逻辑，无人打开页面时也能持续产出诊断
 
 诊断流程：
   Python 按 KB 基准插值判定各参数状态（正常/超容差/严重超差）→
   DSR1 直连云端 API 撰写工况评估文（未配置密钥时用本地模板兜底）→
-  写 latest_diagnosis.json + history/<id>.json + history/index.json
+  写 latest_<panel>.json + history/<id>_<panel>.json + history/index.json
 
 企业微信推送：
   检测到异常参数 → 即时推送完整告警（含诊断结论）
@@ -47,7 +50,7 @@ if os.name != "nt":
 # ===== 配置 =====
 DATA_DIR = Path(__file__).parent / "agent_data"
 HIST_DIR = DATA_DIR / "history"
-LATEST = DATA_DIR / "latest_diagnosis.json"
+LATEST = DATA_DIR / "latest_diagnosis.json"      # 默认面板（cooling）最新诊断，向后兼容
 INDEX = HIST_DIR / "index.json"
 
 # Linux 容器（Render）：构建与运行时用户缓存目录不一致，浏览器二进制统一放项目目录。
@@ -84,16 +87,23 @@ SUMMARY_LOOKBACK = 6        # 汇总最近 6 条诊断记录
 
 router = APIRouter(prefix="/agent")
 
-# ===== KB 基准（与 cooling-system.html / 本地版完全一致） =====
+# ===== KB 基准（与 cooling-system.html / fuel-system.html 完全一致） =====
+# noise: 云端模拟器传感器噪声幅度（按量纲缩放），缺省 0.8
 COOLING_BASELINE = {
-    "淡水进水温度":       {"unit": "℃", "tolerance": 5, "values": {25: 17,   50: 19,   75: 22,   90: 26,   100: 32,   110: 34}},
-    "缸套水出水温度":     {"unit": "℃", "tolerance": 3, "values": {25: 86.3, 50: 88.4, 75: 89.9, 90: 92.8, 100: 95.2, 110: 99.1}},
-    "冷却淡水出水温度":   {"unit": "℃", "tolerance": 2, "values": {25: 83.7, 50: 79.6, 75: 78.8, 90: 78.4, 100: 78.8, 110: 78.5}},
-    "活塞冷却油出口温度": {"unit": "℃", "tolerance": 2, "values": {25: 48.3, 50: 54.1, 75: 57.6, 90: 58.8, 100: 59.1, 110: 59.8}},
+    "淡水进水温度":       {"unit": "℃", "tolerance": 5,  "values": {25: 17,   50: 19,   75: 22,   90: 26,   100: 32,   110: 34}},
+    "缸套水出水温度":     {"unit": "℃", "tolerance": 3,  "values": {25: 86.3, 50: 88.4, 75: 89.9, 90: 92.8, 100: 95.2, 110: 99.1}},
+    "冷却淡水出水温度":   {"unit": "℃", "tolerance": 2,  "values": {25: 83.7, 50: 79.6, 75: 78.8, 90: 78.4, 100: 78.8, 110: 78.5}},
+    "活塞冷却油出口温度": {"unit": "℃", "tolerance": 2,  "values": {25: 48.3, 50: 54.1, 75: 57.6, 90: 58.8, 100: 59.1, 110: 59.8}},
+}
+FUEL_BASELINE = {
+    "修正后燃油消耗率":   {"unit": "g/kWh", "tolerance": 2,   "noise": 0.8, "values": {25: 180.88, 50: 170.46, 75: 169.09, 90: 172.12, 100: 175.69, 110: 179.53}},
+    "燃油消耗量":         {"unit": "t/day", "tolerance": 5,   "noise": 1.2, "values": {25: 78.4,  50: 147.8,  75: 220.0,  90: 268.6,  100: 304.6,  110: 342.6}},
+    "扫气压力":           {"unit": "bar",   "tolerance": 0.2, "noise": 0.05,"values": {25: 0.31,  50: 0.95,   75: 1.85,   90: 2.47,   100: 2.86,   110: 3.12}},
+    "增压器转速":         {"unit": "rpm",   "tolerance": 100, "noise": 40,  "values": {25: 3777,  50: 6585,   75: 8438,   90: 9376,   100: 9931,   110: 10441}},
 }
 LOADS = [25, 50, 75, 90, 100, 110]
 
-FAULT_SCENARIOS = {
+COOLING_FAULTS = {
     "normal":       {"offsets": {}, "fail": []},
     "cyl_high":     {"offsets": {"缸套水出水温度": 7}, "fail": []},
     "pco_high":     {"offsets": {"活塞冷却油出口温度": 5}, "fail": []},
@@ -102,10 +112,56 @@ FAULT_SCENARIOS = {
     "sensor_fail":  {"offsets": {}, "fail": ["活塞冷却油出口温度"]},
     "multi":        {"offsets": {"缸套水出水温度": 7, "活塞冷却油出口温度": 5, "淡水进水温度": 12}, "fail": []},
 }
+FUEL_FAULTS = {
+    "normal":      {"offsets": {}, "fail": []},
+    "sfoc_high":   {"offsets": {"修正后燃油消耗率": 5}, "fail": []},
+    "flow_high":   {"offsets": {"燃油消耗量": 15}, "fail": []},
+    "scav_low":    {"offsets": {"扫气压力": -0.4}, "fail": []},
+    "tc_high":     {"offsets": {"增压器转速": 300}, "fail": []},
+    "sensor_fail": {"offsets": {}, "fail": ["修正后燃油消耗率"]},
+    "multi":       {"offsets": {"修正后燃油消耗率": 5, "扫气压力": -0.4, "增压器转速": 300}, "fail": []},
+}
+
+PANELS = {
+    "cooling": {
+        "label": "冷却系统",
+        "system": "冷却",
+        "baseline": COOLING_BASELINE,
+        "faults": COOLING_FAULTS,
+        "url": "cooling-system.html",
+        "kb_sources": ["温度监测", "负载指数"],
+        "role": (
+            "你是远洋船舶资深轮机长，精通 MAN B&W 12K98ME-C7 大型低速二冲程柴油机的冷却系统运维。"
+            "根据给定的实时测量值与 KB 基准比对结果，用中文写一段 120-200 字的工况评估文："
+            "先给整体结论，再点出异常参数的可能原因（如缸套水温偏高→冷却器结垢/温控阀故障），"
+            "最后给一句处置建议。不要输出 JSON、表格或标题，直接输出正文。"
+        ),
+        "shot_note": "附图是刚从云端 headless 浏览器截取的冷却系统监测面板实时截图，请结合截图内容撰写。",
+        "fallback_normal": "各参数偏差均在容差范围内，冷却系统工况正常，维持常规监测即可。",
+        "fallback_abnormal": "建议按容差判定结果排查对应传感器与冷却回路。",
+    },
+    "fuel": {
+        "label": "油耗系统",
+        "system": "油耗",
+        "baseline": FUEL_BASELINE,
+        "faults": FUEL_FAULTS,
+        "url": "fuel-system.html",
+        "kb_sources": ["油耗监测", "能效优化", "负载指数", "涡轮增压器"],
+        "role": (
+            "你是远洋船舶资深轮机长，精通 MAN B&W 12K98ME-C7 大型低速二冲程柴油机的燃油管控与能效优化。"
+            "根据给定的实时测量值与 KB 基准比对结果，用中文写一段 120-200 字的工况评估文："
+            "先给整体结论，再点出异常参数的可能原因（如 SFOC 偏高→喷油器雾化不良/扫气压力偏低→增压器或空冷器污损/"
+            "燃油消耗量偏高→航速过快或船体污底），最后给一句处置建议。不要输出 JSON、表格或标题，直接输出正文。"
+        ),
+        "shot_note": "附图是刚从云端 headless 浏览器截取的油耗监测面板实时截图，请结合截图内容撰写。",
+        "fallback_normal": "各参数偏差均在容差范围内，油耗系统工况正常，主机处于经济工况区间，维持常规监测即可。",
+        "fallback_abnormal": "建议按容差判定结果排查燃油系统与增压空气回路。",
+    },
+}
 
 
-def get_baseline(name, load):
-    v = COOLING_BASELINE[name]["values"]
+def get_baseline(baseline, name, load):
+    v = baseline[name]["values"]
     if load <= 25:
         return v[25]
     if load >= 110:
@@ -117,41 +173,51 @@ def get_baseline(name, load):
     return v[100]
 
 
-# ===== 云端模拟器（移植自 cooling-system.html updateLoad/updateSensors） =====
+# ===== 云端模拟器（移植自 cooling-system.html / fuel-system.html updateLoad/updateSensors） =====
 class _Sim:
     def __init__(self):
         self.lock = threading.Lock()
-        self.load = 85.0
-        self.phase = 0.0
-        self.fault = "normal"
+        self.states = {}
+        for key in PANELS:
+            self.states[key] = {"load": 85.0, "phase": 0.0, "fault": "normal"}
 
-    def set_fault(self, key):
+    def set_fault(self, key, fault):
         with self.lock:
-            self.fault = key if key in FAULT_SCENARIOS else "normal"
+            s = self.states.get(key)
+            if s is None:
+                return
+            s["fault"] = fault if fault in PANELS[key]["faults"] else "normal"
 
-    def tick(self):
+    def tick(self, key):
         with self.lock:
-            self.phase += 0.015
-            self.load = 81 + math.sin(self.phase) * 16 + math.sin(self.phase * 2.3) * 4 + random.uniform(-1, 1)
-            self.load = max(25.0, min(110.0, self.load))
-            load, phase, sc = self.load, self.phase, FAULT_SCENARIOS.get(self.fault, FAULT_SCENARIOS["normal"])
+            s = self.states.get(key)
+            if s is None:
+                return {"load": 85.0, "sensors": {}, "fault": "normal"}
+            s["phase"] += 0.015
+            s["load"] = 81 + math.sin(s["phase"]) * 16 + math.sin(s["phase"] * 2.3) * 4 + random.uniform(-1, 1)
+            s["load"] = max(25.0, min(110.0, s["load"]))
+            load, phase = s["load"], s["phase"]
+            faults = PANELS[key]["faults"]
+            sc = faults.get(s["fault"], faults["normal"])
+            baseline = PANELS[key]["baseline"]
             sensors = {}
-            for name in COOLING_BASELINE:
+            for name, bl in baseline.items():
                 if name in sc["fail"]:
                     sensors[name] = 0
                     continue
-                base = get_baseline(name, load)
-                noise = random.uniform(-0.8, 0.8)
-                drift = math.sin(phase * 0.7 + len(name)) * 0.5
+                base = get_baseline(baseline, name, load)
+                amp = bl.get("noise", 0.8)
+                noise = random.uniform(-amp, amp)
+                drift = math.sin(phase * 0.7 + len(name)) * amp * 0.6
                 off = sc["offsets"].get(name, 0)
                 sensors[name] = round(base + noise + drift + off, 2)
-            return {"load": round(load, 2), "sensors": sensors, "fault": self.fault}
+            return {"load": round(load, 2), "sensors": sensors, "fault": s["fault"]}
 
 
 _sim = _Sim()
 
 
-# ===== 云端真实截图（headless Chromium 渲染 cooling-system.html 并截屏） =====
+# ===== 云端真实截图（headless Chromium 渲染面板页并截屏） =====
 _last_capture_ok = None  # None=未尝试 True/False=最近一次结果
 _last_capture_err = ""
 
@@ -173,8 +239,8 @@ def _prune_shots(shots_dir: Path, keep: int = 10):
         pass
 
 
-def capture_panel(load: float, fault: str):
-    """headless Chromium 打开冷却面板页面真实截图；失败返回 None（回退无截图模式）。"""
+def capture_panel(load: float, fault: str, panel: str):
+    """headless Chromium 打开面板页面真实截图；失败返回 None（回退无截图模式）。"""
     global _last_capture_ok, _last_capture_err
     try:
         from playwright.sync_api import sync_playwright
@@ -185,9 +251,10 @@ def capture_panel(load: float, fault: str):
     shots_dir = DATA_DIR / "screenshots"
     shots_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = shots_dir / f"capture_{ts}.png"
+    path = shots_dir / f"capture_{ts}_{panel}.png"
     port = os.environ.get("PORT", "10000")
-    url = (f"http://127.0.0.1:{port}/static/cooling-system.html"
+    page_file = PANELS[panel]["url"]
+    url = (f"http://127.0.0.1:{port}/static/{page_file}"
            f"?mode=manual&load={load}&fault={fault}")
     base_args = ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
                  "--disable-extensions", "--hide-scrollbars"]
@@ -227,8 +294,8 @@ def capture_panel(load: float, fault: str):
     print(f"[agent] 云端截图失败（回退无截图模式）: {last_err}", flush=True)
     return None
 
-# ===== 浏览器 DOM 真实值缓存 =====
-_dom_state = None
+# ===== 浏览器 DOM 真实值缓存（按面板隔离） =====
+_dom_states = {}
 _dom_lock = threading.Lock()
 
 # ===== 诊断调度状态 =====
@@ -239,34 +306,36 @@ _thread_started = False
 _start_lock = threading.Lock()
 
 
-def _collect_readings():
+def _collect_readings(panel):
     """优先取新鲜 DOM 真实值，否则用云端模拟器。"""
-    global _dom_state
+    global _dom_states
     now = time.time()
     with _dom_lock:
-        dom = dict(_dom_state) if _dom_state else None
+        dom = dict(_dom_states.get(panel) or {}) if _dom_states else {}
     if dom and isinstance(dom.get("load"), (int, float)) and now - dom.get("_recv_ts", 0) <= DOM_STATE_TTL:
         return float(dom["load"]), dom.get("sensors", {}), "dom"
-    sim = _sim.tick()
+    sim = _sim.tick(panel)
     return sim["load"], sim["sensors"], "sim"
 
 
-def _judge(load, raw_sensors):
+def _judge(panel, load, raw_sensors):
     """按 KB 基准判定状态，组装 sensors + concerns（逻辑与本地版 parse_result 一致）。"""
+    cfg = PANELS[panel]
+    baseline = cfg["baseline"]
     sensors, concerns = {}, []
-    for name, bl in COOLING_BASELINE.items():
+    for name, bl in baseline.items():
         raw = raw_sensors.get(name)
         if raw is None or raw == "":
-            sensors[name] = {"value": None, "unit": bl["unit"], "system": "冷却", "status": "未知"}
+            sensors[name] = {"value": None, "unit": bl["unit"], "system": cfg["system"], "status": "未知"}
             concerns.append(f"{name}：无读数")
             continue
         try:
             v = float(raw)
         except (TypeError, ValueError):
-            sensors[name] = {"value": None, "unit": bl["unit"], "system": "冷却", "status": "未知"}
+            sensors[name] = {"value": None, "unit": bl["unit"], "system": cfg["system"], "status": "未知"}
             concerns.append(f"{name}：读数无效（{raw}）")
             continue
-        base = get_baseline(name, load)
+        base = get_baseline(baseline, name, load)
         delta = round(v - base, 2)
         tol = bl["tolerance"]
         if abs(delta) <= tol:
@@ -275,7 +344,7 @@ def _judge(load, raw_sensors):
             st = "超容差"
         else:
             st = "严重超差"
-        sensors[name] = {"value": round(v, 2), "unit": bl["unit"], "system": "冷却", "status": st}
+        sensors[name] = {"value": round(v, 2), "unit": bl["unit"], "system": cfg["system"], "status": st}
         if st != "正常":
             concerns.append(
                 f"{name}：实测 {v}{bl['unit']}，基准 {base}{bl['unit']}，"
@@ -291,17 +360,19 @@ def _judge(load, raw_sensors):
     return sensors, concerns, overall
 
 
-def _assessment_text(load, sensors, concerns, overall, img_path=None):
+def _assessment_text(panel, load, sensors, concerns, overall, img_path=None):
     """DSR1 撰写工况评估文（有截图时带图真视觉）；未配置密钥或失败时本地模板兜底。"""
+    cfg = PANELS[panel]
+    baseline = cfg["baseline"]
     rows = []
     for name, s in sensors.items():
-        rows.append(f"- {name}：{s['value']}{s['unit']}（{s['status']}，基准 {get_baseline(name, load)}{s['unit']}）")
+        rows.append(f"- {name}：{s['value']}{s['unit']}（{s['status']}，基准 {get_baseline(baseline, name, load)}{s['unit']}）")
     table = "\n".join(rows)
     issues = "\n".join("- " + c for c in concerns) if concerns else "无"
     fallback = (
-        f"当前主机负载 {load}%，冷却系统四参数与 KB 基准比对结论：{overall}。"
-        + ("主要关注点：" + "；".join(concerns) + "。建议按容差判定结果排查对应传感器与冷却回路。"
-           if concerns else "各参数偏差均在容差范围内，冷却系统工况正常，维持常规监测即可。")
+        f"当前主机负载 {load}%，{cfg['label']}四参数与 KB 基准比对结论：{overall}。"
+        + ("主要关注点：" + "；".join(concerns) + "。" + cfg["fallback_abnormal"]
+           if concerns else cfg["fallback_normal"])
     )
     if _dsr1 is None:
         return fallback
@@ -314,7 +385,7 @@ def _assessment_text(load, sensors, concerns, overall, img_path=None):
             b64 = base64.b64encode(Path(img_path).read_bytes()).decode()
             content = [
                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
-                {"type": "text", "text": user_text + "\n\n附图是刚从云端 headless 浏览器截取的冷却系统监测面板实时截图，请结合截图内容撰写。"},
+                {"type": "text", "text": user_text + "\n\n" + cfg["shot_note"]},
             ]
         else:
             content = user_text
@@ -323,12 +394,7 @@ def _assessment_text(load, sensors, concerns, overall, img_path=None):
             temperature=0.4,
             max_tokens=800,
             messages=[
-                {"role": "system", "content": (
-                    "你是远洋船舶资深轮机长，精通 MAN B&W 12K98ME-C7 大型低速二冲程柴油机的冷却系统运维。"
-                    "根据给定的实时测量值与 KB 基准比对结果，用中文写一段 120-200 字的工况评估文："
-                    "先给整体结论，再点出异常参数的可能原因（如缸套水温偏高→冷却器结垢/温控阀故障），"
-                    "最后给一句处置建议。不要输出 JSON、表格或标题，直接输出正文。"
-                )},
+                {"role": "system", "content": cfg["role"]},
                 {"role": "user", "content": content},
             ],
         )
@@ -342,79 +408,89 @@ def _assessment_text(load, sensors, concerns, overall, img_path=None):
 def _save(diag):
     DATA_DIR.mkdir(exist_ok=True)
     HIST_DIR.mkdir(exist_ok=True)
-    LATEST.write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding="utf-8")
+    panel = diag["panel"]
+    if panel == "cooling":
+        LATEST.write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding="utf-8")
+    latest_f = DATA_DIR / f"latest_{panel}.json"
+    latest_f.write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding="utf-8")
     (HIST_DIR / f"{diag['id']}.json").write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding="utf-8")
     try:
         idx = json.loads(INDEX.read_text(encoding="utf-8")) if INDEX.exists() else []
     except Exception:
         idx = []
+    cfg = PANELS[panel]
     ssum = [
         {"name": n, "value": diag["sensors"].get(n, {}).get("value"),
-         "unit": diag["sensors"].get(n, {}).get("unit", "℃"),
+         "unit": diag["sensors"].get(n, {}).get("unit", ""),
          "status": diag["sensors"].get(n, {}).get("status", "未知")}
-        for n in COOLING_BASELINE
+        for n in cfg["baseline"]
     ]
     idx.insert(0, {
-        "id": diag["id"], "time": diag["time"], "system": "冷却系统", "load": diag["load"],
-        "status": diag["status"], "overall_status": diag["assessment"]["overall_status"],
+        "id": diag["id"], "time": diag["time"], "system": cfg["label"], "panel": panel,
+        "load": diag["load"], "status": diag["status"], "overall_status": diag["assessment"]["overall_status"],
         "anomaly_count": len(diag["anomalies"]), "concern_count": len(diag["assessment"]["concerns"]),
         "screenshot": diag.get("screenshot"), "sensors_summary": ssum,
     })
     INDEX.write_text(json.dumps(idx[:HISTORY_KEEP], ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _collect_anomalies(load, sensors):
+def _collect_anomalies(panel, load, sensors):
     """从判定结果中提取超容差/严重超差参数，用于企业微信告警。"""
+    cfg = PANELS[panel]
+    baseline = cfg["baseline"]
     anomalies = []
     for name, s in sensors.items():
         if s.get("status") in ("超容差", "严重超差") and s.get("value") is not None:
-            base = get_baseline(name, load)
+            base = get_baseline(baseline, name, load)
             anomalies.append({
                 "param": name,
-                "system": s.get("system", "冷却"),
+                "system": s.get("system", cfg["system"]),
                 "value": s["value"],
                 "unit": s.get("unit", ""),
                 "baseline": base,
                 "delta": round(s["value"] - base, 2),
-                "tolerance": COOLING_BASELINE[name]["tolerance"],
+                "tolerance": baseline[name]["tolerance"],
             })
     return anomalies
 
 
-def run_once():
+def run_once(panel):
     with _run_lock:
-        load, raw_sensors, source = _collect_readings()
+        load, raw_sensors, source = _collect_readings(panel)
         fault = "normal"
         if source == "dom":
-            fault = _dom_state.get("fault", "normal") if _dom_state else "normal"
+            dom = _dom_states.get(panel) or {}
+            fault = dom.get("fault", "normal")
         else:
-            fault = _sim.fault
-        img = capture_panel(load, fault)
-        sensors, concerns, overall = _judge(load, raw_sensors)
+            fault = _sim.states[panel]["fault"] if panel in _sim.states else "normal"
+        img = capture_panel(load, fault, panel)
+        sensors, concerns, overall = _judge(panel, load, raw_sensors)
         now = datetime.datetime.now()
-        anomalies = _collect_anomalies(load, sensors)
+        anomalies = _collect_anomalies(panel, load, sensors)
+        cfg = PANELS[panel]
         diag = {
-            "id": now.strftime("%Y%m%d_%H%M%S"),
+            "id": now.strftime("%Y%m%d_%H%M%S") + "_" + panel,
             "time": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "panel": panel,
             "load": load,
             "screenshot": img.name if img else None,
             "sensors": sensors,
             "assessment": {
-                "system": "冷却系统",
+                "system": cfg["label"],
                 "overall_status": overall,
-                "assessment": _assessment_text(load, sensors, concerns, overall, img_path=img),
+                "assessment": _assessment_text(panel, load, sensors, concerns, overall, img_path=img),
                 "concerns": concerns,
             },
             "anomalies": anomalies,
             "diagnosis": None,
             "vision_method": "vision" if img else source,   # vision=云端截图+DSR1 / dom=读DOM / sim=云端模拟器
-            "kb_sources": ["温度监测", "负载指数"],
+            "kb_sources": cfg["kb_sources"],
             "status": {"正常": "normal", "关注": "warn", "异常": "abnormal"}[overall],
             "next_check": (now + datetime.timedelta(seconds=INTERVAL)).strftime("%H:%M:%S"),
             "interval_sec": INTERVAL,
         }
         _save(diag)
-        print(f"[agent] {diag['time']} diag OK  method={diag['vision_method']}  load={load}%  {overall}", flush=True)
+        print(f"[agent] {diag['time']} [{panel}] diag OK  method={diag['vision_method']}  load={load}%  {overall}", flush=True)
         if anomalies:
             try:
                 push_alert_wecom(load, anomalies, diag)
@@ -472,7 +548,7 @@ def _ensure_browser():
         print(f"[agent] 浏览器运行时安装失败: {type(e).__name__}: {str(e)[:200]}", flush=True)
     _ensure_cjk_font()
     if installed:
-        threading.Thread(target=run_once, daemon=True).start()
+        threading.Thread(target=run_once, args=("cooling",), daemon=True).start()
 
 
 def _scheduler():
@@ -481,10 +557,11 @@ def _scheduler():
         with _diag_lock:
             active = _diagnosing
         if active:
-            try:
-                run_once()
-            except Exception:
-                traceback.print_exc()
+            for key in PANELS:
+                try:
+                    run_once(key)
+                except Exception:
+                    traceback.print_exc()
         time.sleep(INTERVAL if active else 5)
 
 
@@ -497,7 +574,7 @@ def start_agent():
     threading.Thread(target=_scheduler, daemon=True, name="agent-monitor").start()
     threading.Thread(target=_ensure_browser, daemon=True, name="agent-browser-install").start()
     threading.Thread(target=summary_loop, daemon=True, name="agent-wecom-summary").start()
-    print(f"[agent] 云端诊断智能体已启动（间隔 {INTERVAL}s，DSR1={'已配置' if _dsr1 else '未配置(模板兜底)'}）", flush=True)
+    print(f"[agent] 云端诊断智能体已启动（间隔 {INTERVAL}s，面板: {'/'.join(PANELS)}，DSR1={'已配置' if _dsr1 else '未配置(模板兜底)'}）", flush=True)
 
 
 # ===== 企业微信推送（直连群机器人 webhook） =====
@@ -529,9 +606,11 @@ def send_wecom_markdown(content):
 
 def build_alert_markdown(load, anomalies, diag):
     """构造异常即时推送的 markdown 内容（完整异常 + 诊断结论 + 建议）"""
+    cfg = PANELS.get(diag.get("panel", "cooling"), PANELS["cooling"])
     lines = [
         "## 🚨 轮机异常告警",
         f"> **时间**：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"> **系统**：{cfg['label']}",
         f"> **主机负载**：{load}%",
         "",
         "**异常参数：**",
@@ -575,13 +654,14 @@ def build_summary_markdown(records):
         for r in abnormal:
             t = (r.get("time") or "")[11:16]
             load = r.get("load", "?")
+            tag = "油耗" if r.get("panel") == "fuel" else "冷却"
             ssum = r.get("sensors_summary", [])
             bad = [s for s in ssum if s.get("status") in ("超容差", "严重超差")]
             if bad:
                 desc = "；".join(f"{s['name']} {s['value']}{s.get('unit', '')}" for s in bad[:4])
             else:
                 desc = r.get("overall_status", "异常")
-            lines.append(f"- {t} 负载{load}%：{desc}")
+            lines.append(f"- {t} [{tag}] 负载{load}%：{desc}")
         lines.append("")
         lines.append("⚠️ **当前存在异常，请及时查看监控台处理**")
     else:
@@ -589,7 +669,8 @@ def build_summary_markdown(records):
         lines.append("")
         latest = records[0]
         if latest.get("load") is not None:
-            lines.append(f"最新状态：负载 {latest['load']}%，{latest.get('overall_status', '正常')}")
+            tag = "油耗" if latest.get("panel") == "fuel" else "冷却"
+            lines.append(f"最新状态：[{tag}] 负载 {latest['load']}%，{latest.get('overall_status', '正常')}")
 
     return "\n".join(lines)
 
@@ -618,6 +699,7 @@ def summary_loop():
 
 # ===== HTTP 接口（同源挂载，前缀 /agent） =====
 class DomState(BaseModel):
+    panel: str = "cooling"
     load: float
     sensors: dict
     mode: str = "auto"
@@ -628,32 +710,52 @@ class DomState(BaseModel):
 
 @router.post("/__state")
 def receive_state(st: DomState):
-    global _dom_state
+    global _dom_states
     payload = st.model_dump()
     payload["_recv_ts"] = time.time()
+    key = payload.get("panel") or "cooling"
+    if key not in PANELS:
+        key = "cooling"
     with _dom_lock:
-        _dom_state = payload
-    return {"ok": True}
+        _dom_states[key] = payload
+    return {"ok": True, "panel": key}
+
+
+def _read_latest(panel):
+    if panel != "cooling":
+        f = DATA_DIR / f"latest_{panel}.json"
+        if f.exists():
+            return json.loads(f.read_text(encoding="utf-8"))
+    if LATEST.exists():
+        data = json.loads(LATEST.read_text(encoding="utf-8"))
+        return data
+    return None
 
 
 @router.get("/latest")
-def latest():
-    if LATEST.exists():
-        return JSONResponse(json.loads(LATEST.read_text(encoding="utf-8")))
+def latest(panel: str = "cooling"):
+    panel = panel if panel in PANELS else "cooling"
+    data = _read_latest(panel)
+    if data:
+        return JSONResponse(data)
     return {
         "status": "waiting",
+        "panel": panel,
         "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "assessment": {"system": "冷却系统", "overall_status": "等待", "assessment": "尚未产生评估", "concerns": []},
+        "assessment": {"system": PANELS[panel]["label"], "overall_status": "等待",
+                       "assessment": "尚未产生评估", "concerns": []},
         "sensors": {}, "vision_method": "sim", "interval_sec": INTERVAL,
     }
 
 
 @router.get("/history")
-def history():
+def history(panel: str = None):
     try:
         arr = json.loads(INDEX.read_text(encoding="utf-8")) if INDEX.exists() else []
     except Exception:
         arr = []
+    if panel:
+        arr = [r for r in arr if r.get("panel", "cooling") == panel]
     return {"records": arr, "total": len(arr)}
 
 
@@ -668,7 +770,7 @@ def history_one(hid: str):
 
 @router.get("/screenshot")
 @router.get("/screenshot/{sid}")
-def screenshot(sid: str = None):
+def screenshot(sid: str = None, panel: str = None):
     name = None
     if sid:
         f = HIST_DIR / (os.path.basename(sid) + ".json")
@@ -677,11 +779,13 @@ def screenshot(sid: str = None):
                 name = json.loads(f.read_text(encoding="utf-8")).get("screenshot")
             except Exception:
                 pass
-    elif LATEST.exists():
-        try:
-            name = json.loads(LATEST.read_text(encoding="utf-8")).get("screenshot")
-        except Exception:
-            pass
+    else:
+        data = _read_latest(panel if panel in PANELS else "cooling")
+        if data:
+            try:
+                name = data.get("screenshot")
+            except Exception:
+                pass
     if name:
         fp = DATA_DIR / "screenshots" / os.path.basename(name)
         if fp.exists():
@@ -697,13 +801,14 @@ def health():
         "ok": True,
         "service": "agent_monitor_cloud",
         "interval_sec": INTERVAL,
+        "panels": list(PANELS.keys()),
         "dsr1": bool(_dsr1),
         "playwright": _playwright_ok(),
         "browsers_dir": any(_PW_BROWSERS.glob("chromium*")) if os.name != "nt" else True,
         "cjk_font": True if os.name == "nt" else FONT_FILE.exists(),
         "last_capture_ok": _last_capture_ok,
         "last_capture_err": _last_capture_err,
-        "dom_state_fresh": bool(_dom_state and time.time() - _dom_state.get("_recv_ts", 0) <= DOM_STATE_TTL),
+        "dom_state_fresh": bool(_dom_states and time.time() - (_dom_states.get("cooling") or {}).get("_recv_ts", 0) <= DOM_STATE_TTL),
         "latest_exists": LATEST.exists(),
         "diagnosing": active,
     }
@@ -714,7 +819,8 @@ def start_diagnosis():
     global _diagnosing
     with _diag_lock:
         _diagnosing = True
-    threading.Thread(target=run_once, daemon=True).start()
+    for key in PANELS:
+        threading.Thread(target=run_once, args=(key,), daemon=True).start()
     return {"ok": True, "diagnosing": True, "msg": "诊断已开始"}
 
 
@@ -727,16 +833,18 @@ def stop_diagnosis():
 
 
 @router.get("/trigger")
-def trigger():
+def trigger(panel: str = "cooling"):
+    key = panel if panel in PANELS else "cooling"
     try:
-        return {"ok": True, "diag": run_once()}
+        return {"ok": True, "diag": run_once(key)}
     except Exception as e:
         traceback.print_exc()
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
 @router.get("/set_fault")
-def set_fault(key: str = "normal"):
-    _sim.set_fault(key)
-    return {"ok": True, "fault": _sim.fault,
+def set_fault(key: str = "normal", panel: str = "cooling"):
+    p = panel if panel in PANELS else "cooling"
+    _sim.set_fault(p, key)
+    return {"ok": True, "panel": p, "fault": _sim.states[p]["fault"] if p in _sim.states else key,
             "note": "仅影响云端模拟器读数；浏览器打开面板时以页面注入的故障为准"}

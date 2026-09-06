@@ -99,6 +99,20 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
 .jump-banner-desc{font-size:12px;color:var(--tx2)}
 .jump-banner-arrow{font-size:22px;color:var(--cyan);font-weight:700}
 
+/* 跳转横幅：油耗系统（金色系） */
+.jump-banner.fuel{background:linear-gradient(135deg,rgba(232,164,0,0.10),rgba(255,107,53,0.06));border-color:var(--yellow)}
+.jump-banner.fuel:hover{border-color:var(--orange);box-shadow:0 4px 20px rgba(232,164,0,0.22)}
+.jump-banner.fuel .jump-banner-icon{animation:none}
+.jump-banner.fuel .jump-banner-title{color:var(--yellow)}
+.jump-banner.fuel .jump-banner-arrow{color:var(--yellow)}
+
+/* 面板切换 Tab */
+.panel-tabs{display:flex;gap:6px;margin-left:14px}
+.panel-tab{padding:5px 14px;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid var(--border);color:var(--tx2);background:var(--bg-card);transition:all .2s;font-family:inherit}
+.panel-tab:hover{color:var(--tx)}
+.panel-tab.active{background:rgba(0,212,255,0.12);border-color:var(--cyan);color:var(--cyan);font-weight:600}
+.panel-tab.fuel.active{background:rgba(232,164,0,0.12);border-color:var(--yellow);color:var(--yellow);font-weight:600}
+
 /* 角落水印 */
 .prototype-watermark{position:fixed;bottom:14px;right:18px;z-index:99;padding:6px 14px;background:rgba(255,107,53,0.10);border:1px dashed var(--orange);border-radius:20px;font-size:11px;color:var(--orange);letter-spacing:1px;pointer-events:none;backdrop-filter:blur(4px)}
 
@@ -109,6 +123,8 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
 .action-btn.primary{border-color:var(--cyan);background:rgba(0,212,255,0.05)}
 .action-btn.primary:hover{background:rgba(0,212,255,0.1);box-shadow:0 0 16px rgba(0,212,255,0.15)}
 .action-btn.secondary{border-color:var(--blue)}
+.action-btn.fuel{border-color:var(--yellow);background:rgba(232,164,0,0.05)}
+.action-btn.fuel:hover{background:rgba(232,164,0,0.1);box-shadow:0 0 16px rgba(232,164,0,0.15)}
 .ab-icon{font-size:28px}
 .ab-info{flex:1}
 .ab-title{font-size:14px;font-weight:600;margin-bottom:2px}
@@ -162,6 +178,16 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
     <div class="jump-banner-info">
       <div class="jump-banner-title">立刻进入「冷却系统」监控面板</div>
       <div class="jump-banner-desc">DSR1 智能体每 5 分钟自动读图 · 4 个核心温度实时监控 · 工况视觉评估</div>
+    </div>
+    <div class="jump-banner-arrow">→</div>
+  </div>
+
+  <!-- 跳转横幅：油耗系统（功能与冷却系统一致） -->
+  <div class="jump-banner fuel" id="jumpBannerFuel" onclick="goFuelSystem()" title="点击进入油耗监测面板（含智能体视觉诊断）">
+    <div class="jump-banner-icon">⛽</div>
+    <div class="jump-banner-info">
+      <div class="jump-banner-title">立刻进入「油耗系统」监控面板</div>
+      <div class="jump-banner-desc">DSR1 智能体每 5 分钟自动读图 · 4 个油耗参数实时监控 · 能效工况视觉评估</div>
     </div>
     <div class="jump-banner-arrow">→</div>
   </div>
@@ -231,6 +257,10 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
     <div class="sec-hdr">
       <span class="sec-icon">🧠</span>
       <span class="sec-title">智能体视觉诊断</span>
+      <div class="panel-tabs">
+        <button class="panel-tab active" id="tabCooling" onclick="switchPanel('cooling')">冷却系统</button>
+        <button class="panel-tab fuel" id="tabFuel" onclick="switchPanel('fuel')">油耗系统</button>
+      </div>
       <span class="sec-badge warn" id="aiBadge">等待数据</span>
       <span style="font-size:11px;color:var(--tx3);margin-left:auto" id="aiTime">--</span>
     </div>
@@ -273,6 +303,14 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
       </div>
       <span class="ab-arrow">→</span>
     </button>
+    <button class="action-btn fuel" id="enterFuelPanelBtn">
+      <span class="ab-icon">⛽</span>
+      <div class="ab-info">
+        <div class="ab-title">进入油耗系统监控</div>
+        <div class="ab-desc">12K98ME-C7 油耗系统 · 4 油耗参数 · 能效工况视觉评估</div>
+      </div>
+      <span class="ab-arrow">→</span>
+    </button>
     <button class="action-btn secondary" id="enterGradioBtn">
       <span class="ab-icon">🧠</span>
       <div class="ab-info">
@@ -298,6 +336,7 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
 const logs = [];
 let logTimer = null;
 let diagnosticRun = false;
+let currentPanel = 'cooling';   // 智能体视觉诊断当前面板：cooling | fuel
 
 // ===== CLOCK =====
 function updateClock() {
@@ -517,7 +556,7 @@ const AI_API = '/agent';
 
 async function fetchLatestDiagnosis() {
   try {
-    const resp = await fetch(AI_API + '/latest', {signal: AbortSignal.timeout(8000)});
+    const resp = await fetch(AI_API + '/latest?panel=' + currentPanel, {signal: AbortSignal.timeout(8000)});
     const data = await resp.json();
     renderAIDiagnosis(data, false);
   } catch(e) {
@@ -525,6 +564,17 @@ async function fetchLatestDiagnosis() {
     document.getElementById('aiBadge').textContent = '离线';
     document.getElementById('aiBadge').className = 'sec-badge err';
   }
+}
+
+// 面板切换：冷却系统 / 油耗系统（功能一致，各自独立诊断）
+function switchPanel(p) {
+  if (p !== 'cooling' && p !== 'fuel') return;
+  currentPanel = p;
+  document.getElementById('tabCooling').classList.toggle('active', p === 'cooling');
+  document.getElementById('tabFuel').classList.toggle('active', p === 'fuel');
+  addLog('INFO', 'AI', '切换视觉诊断面板：' + (p === 'fuel' ? '油耗系统' : '冷却系统'));
+  fetchLatestDiagnosis();
+  fetchHistory();
 }
 
 function renderAIDiagnosis(data, isHistory) {
@@ -536,7 +586,7 @@ function renderAIDiagnosis(data, isHistory) {
   document.getElementById('aiTime').textContent = (data.time||'--') + (isHistory?' [历史]':(' · 下次'+(data.next_check||'--')));
 
   const assess = data.assessment || {};
-  const shotSrc = isHistory ? (AI_API + '/screenshot/' + data.id) : (AI_API + '/screenshot');
+  const shotSrc = isHistory ? (AI_API + '/screenshot/' + data.id) : (AI_API + '/screenshot?panel=' + currentPanel);
   let html = '';
 
   html += '<div style="margin-bottom:12px;text-align:center"><img src="' + shotSrc + '" style="max-width:100%;border:1px solid var(--border);border-radius:8px" alt="智能体截图" onerror="this.style.display=\'none\'"></div>';
@@ -588,7 +638,7 @@ function renderAIDiagnosis(data, isHistory) {
 
 async function fetchHistory() {
   try {
-    const resp = await fetch(AI_API + '/history', {signal: AbortSignal.timeout(8000)});
+    const resp = await fetch(AI_API + '/history?panel=' + currentPanel, {signal: AbortSignal.timeout(8000)});
     const data = await resp.json();
     renderHistory(data.records||[]);
   } catch(e) {
@@ -632,7 +682,8 @@ const logTemplates = [
   {level:'INFO', sys:'FILTER', msg:'2阶巴特沃斯滤波器运行中，截止频率 10Hz'},
   {level:'INFO', sys:'SCALING', msg:'A/D转换器16bit采样，量程 0-65535 Counts'},
   {level:'OK', sys:'TC-MON', msg:'增压器转速 9945rpm (100%负载)，在正常区间 9874-10070rpm 内'},
-  {level:'OK', sys:'FUEL', msg:'燃油消耗率修正值 175.39 g/kWh，在正常波动范围 ±3% 内'},
+  {level:'OK', sys:'FUEL', msg:'燃油消耗率修正值 175.69 g/kWh (100%负载)，在容差 ±2 g/kWh 内'},
+  {level:'OK', sys:'FUEL', msg:'燃油消耗量 304.6 t/day (100%负载)，在容差 ±5 t/day 内'},
   {level:'INFO', sys:'MOP', msg:'MOP Process Information 数据更新完成'},
   {level:'OK', sys:'SCAVENGE', msg:'扫气压力 2.86bar，偏差 < ±0.2bar'},
   {level:'INFO', sys:'COMM', msg:'DPU总线通信正常，Process Segment Starcoupler 在线'},
@@ -655,7 +706,7 @@ function startLogFeed() {
 }
 
 // ===== PANEL TOGGLE =====
-document.getElementById('enterPanelBtn').addEventListener('click', () => {
+function openPanel(page, logMsg) {
   const section = document.getElementById('panelSection');
   const closeBtn = document.getElementById('panelCloseBtn');
   const frame = document.getElementById('panelFrame');
@@ -664,15 +715,23 @@ document.getElementById('enterPanelBtn').addEventListener('click', () => {
     section.classList.remove('show');
     closeBtn.classList.remove('show');
     frame.src = '';
-    addLog('INFO', 'UI', '退出冷却系统监控面板，返回诊断门户');
+    addLog('INFO', 'UI', '退出监控面板，返回诊断门户');
   } else {
-    frame.src = 'cooling-system.html';
+    frame.src = page;
     section.classList.add('show');
     closeBtn.classList.add('show');
-    addLog('OK', 'UI', '进入冷却系统监控面板（4 核心温度 + 智能体诊断）');
+    addLog('OK', 'UI', logMsg);
     section.scrollIntoView({behavior:'smooth'});
     window.scrollTo(0, 0);
   }
+}
+
+document.getElementById('enterPanelBtn').addEventListener('click', () => {
+  openPanel('cooling-system.html', '进入冷却系统监控面板（4 核心温度 + 智能体诊断）');
+});
+
+document.getElementById('enterFuelPanelBtn').addEventListener('click', () => {
+  openPanel('fuel-system.html', '进入油耗系统监控面板（4 油耗参数 + 智能体诊断）');
 });
 
 document.getElementById('panelCloseBtn').addEventListener('click', () => {
@@ -691,11 +750,16 @@ document.getElementById('enterGradioBtn').addEventListener('click', () => {
   window.open('/app/', '_blank');
 });
 
-// ===== 跳转横幅：冷却系统 =====
+// ===== 跳转横幅：冷却系统 / 油耗系统 =====
 function goCoolingSystem() {
   addLog('OK', 'UI', '通过门户跳转横幅进入冷却系统监控面板');
   // 直接新开窗口加载冷却系统入口页（更接近独立产品的体验）
   window.open('/static/cooling-system.html', '_blank');
+}
+
+function goFuelSystem() {
+  addLog('OK', 'UI', '通过门户跳转横幅进入油耗系统监控面板');
+  window.open('/static/fuel-system.html', '_blank');
 }
 
 // ===== INIT =====
