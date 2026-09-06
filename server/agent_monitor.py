@@ -259,7 +259,7 @@ def capture_panel(load: float, fault: str, panel: str, raw_sensors=None):
     port = os.environ.get("PORT", "10000")
     page_file = PANELS[panel]["url"]
     url = (f"http://127.0.0.1:{port}/static/{page_file}"
-           f"?mode=manual&load={load}&fault={fault}")
+           f"?mode=auto&load={load}&fault={fault}")
     if raw_sensors:
         try:
             _snap = {}

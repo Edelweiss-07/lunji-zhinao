@@ -489,6 +489,8 @@ updateSensors();
     const b64 = inj.replace(/-/g,'+').replace(/_/g,'/');
     const dec = JSON.parse(decodeURIComponent(escape(atob(b64))));
     if(!dec || typeof dec !== 'object') return;
+    const il = qp.get('load');
+    if (il && !isNaN(+il)) realLoad = Math.min(110, Math.max(25, +il));
     frozenLoad = realLoad;
     frozenSensors = {};
     for(const name in COOLING_BASELINE){
