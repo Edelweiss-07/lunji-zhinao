@@ -239,11 +239,12 @@ def _prune_shots(shots_dir: Path, keep: int = 10):
         pass
 
 
-def capture_panel(load: float, fault: str, panel: str, raw_sensors=None):
+def capture_panel(load: float, fault: str, panel: str, raw_sensors=None, mode="auto"):
     """headless Chromium 打开面板页面真实截图；失败返回 None（回退无截图模式）。
 
     raw_sensors：判定用的实时数据（DOM 或模拟器）。通过 URL ?sensors=<base64url>
     注入页面并冻结显示，保证截图数值与判定/展示数值完全一致。
+    mode：跟随用户面板实际模式（手动/自动漂移），截图显示一致。
     """
     global _last_capture_ok, _last_capture_err
     try:
@@ -259,7 +260,7 @@ def capture_panel(load: float, fault: str, panel: str, raw_sensors=None):
     port = os.environ.get("PORT", "10000")
     page_file = PANELS[panel]["url"]
     url = (f"http://127.0.0.1:{port}/static/{page_file}"
-           f"?mode=auto&load={load}&fault={fault}")
+           f"?mode={mode}&load={load}&fault={fault}")
     if raw_sensors:
         try:
             _snap = {}
@@ -328,15 +329,15 @@ _start_lock = threading.Lock()
 
 
 def _collect_readings(panel):
-    """优先取新鲜 DOM 真实值，否则用云端模拟器。"""
+    """优先取新鲜 DOM 真实值（含用户实际模式），否则用云端模拟器。"""
     global _dom_states
     now = time.time()
     with _dom_lock:
         dom = dict(_dom_states.get(panel) or {}) if _dom_states else {}
     if dom and isinstance(dom.get("load"), (int, float)) and now - dom.get("_recv_ts", 0) <= DOM_STATE_TTL:
-        return float(dom["load"]), dom.get("sensors", {}), "dom"
+        return float(dom["load"]), dom.get("sensors", {}), "dom", dom.get("mode", "auto")
     sim = _sim.tick(panel)
-    return sim["load"], sim["sensors"], "sim"
+    return sim["load"], sim["sensors"], "sim", "auto"
 
 
 def _judge(panel, load, raw_sensors):
@@ -477,14 +478,14 @@ def _collect_anomalies(panel, load, sensors):
 
 def run_once(panel):
     with _run_lock:
-        load, raw_sensors, source = _collect_readings(panel)
+        load, raw_sensors, source, mode = _collect_readings(panel)
         fault = "normal"
         if source == "dom":
             dom = _dom_states.get(panel) or {}
             fault = dom.get("fault", "normal")
         else:
             fault = _sim.states[panel]["fault"] if panel in _sim.states else "normal"
-        img = capture_panel(load, fault, panel, raw_sensors)
+        img = capture_panel(load, fault, panel, raw_sensors, mode)
         sensors, concerns, overall = _judge(panel, load, raw_sensors)
         now = datetime.datetime.now()
         anomalies = _collect_anomalies(panel, load, sensors)
