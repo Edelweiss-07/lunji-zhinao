@@ -177,7 +177,7 @@ body{font-family:'Inter','Microsoft YaHei','Segoe UI',sans-serif;background:var(
   </div>
 
   <!-- 异常注入（演示/测试用：注入后数据卡死在异常值，直到点击「已处理」） -->
-  <div class="fault-bar">
+  <div class="fault-bar" id="faultBar">
     <span class="fault-label">异常模拟</span>
     <button class="fault-btn inject" id="injectBtn" onclick="injectFault()">⚠ 注入异常</button>
     <button class="fault-btn resolve" id="resolveBtn" onclick="resolveFault()" style="display:none">✓ 已处理</button>
@@ -227,6 +227,7 @@ let faultMode = 'normal';   // 当前异常场景 key（normal=无）
 let faultActive = false;    // 异常是否已注入（数据卡死标志）
 let frozenSensors = null;   // 卡死时的传感器快照
 let frozenLoad = 85;        // 卡死时的负载快照
+let agentInjected = false;  // agent 截图快照注入（截图一致性模式：隐藏内部提示）
 
 let realLoad = 85, loadPhase = 0, prevLoad = 85, mode = 'auto';
 let sensorValues = {};
@@ -373,16 +374,23 @@ function applyFaultUI() {
   const alert = document.getElementById('faultAlert');
   const text = document.getElementById('faultAlertText');
   const desc = document.getElementById('faultDesc');
+  const faultBar = document.getElementById('faultBar');
   if (faultActive) {
     injectBtn.style.display = 'none';
-    if (faultMode === 'normal') {
-      // agent 正常快照注入（截图一致性模式）：数据冻结但不亮红条
+    if (agentInjected) {
+      // agent 截图快照注入（截图一致性模式）：隐藏异常模拟工具条，不暴露内部提示
       resolveBtn.style.display = 'none';
-      alert.classList.remove('on');
-      text.textContent = '';
-      desc.textContent = '数据快照由云端智能体注入（截图一致性模式）';
+      faultBar.style.display = 'none';
+      if (faultMode === 'normal') {
+        alert.classList.remove('on');
+        text.textContent = '';
+      } else {
+        alert.classList.add('on');
+        text.textContent = '⚠ 异常工况：' + sc.label + ' — ' + sc.desc;
+      }
     } else {
       resolveBtn.style.display = 'inline-block';
+      faultBar.style.display = '';
       alert.classList.add('on');
       text.textContent = '⚠ 异常已注入，数据卡死在异常值：' + sc.label + ' — ' + sc.desc;
       desc.textContent = '异常持续中，点击「✓ 已处理」恢复正常监测';
@@ -390,6 +398,7 @@ function applyFaultUI() {
   } else {
     injectBtn.style.display = 'inline-block';
     resolveBtn.style.display = 'none';
+    faultBar.style.display = '';
     alert.classList.remove('on');
     desc.textContent = '点击「⚠ 注入异常」模拟一次故障，数据将卡死在异常值，直到点击「✓ 已处理」';
   }
@@ -490,6 +499,7 @@ updateSensors();
       frozenSensors[name] = isFinite(v) ? +v.toFixed(2) : 0;
     }
     faultActive = true;                          // 冻结：updateLoad/updateSensors 不再重算
+    agentInjected = true;                        // 截图一致性模式：隐藏异常模拟工具条
     for(const name in FUEL_BASELINE) sensorValues[name] = frozenSensors[name];
     const fk = qp.get('fault');
     faultMode = (fk && fk !== 'normal' && FAULT_SCENARIOS[fk]) ? fk : 'normal';
