@@ -67,7 +67,9 @@ FONT_URLS = [
 ]
 
 INTERVAL = int(os.environ.get("AGENT_INTERVAL", "300"))
-DOM_STATE_TTL = 60          # 浏览器 DOM 状态超过 60s 视为过期，回落到模拟器
+# 浏览器 DOM 状态保鲜期：与诊断周期一致，用户最近 5 分钟内操作过面板即视为
+# 有效快照（手动负载/模式/注入故障都会复刻到截图），避免过早回落到模拟器
+DOM_STATE_TTL = int(os.environ.get("DOM_STATE_TTL", "300"))
 HISTORY_KEEP = 50
 
 DSR1_API_BASE = os.environ.get("DSR1_API_BASE", "https://chat.cqjtu.edu.cn/ds/api/v1")
@@ -329,12 +331,13 @@ _start_lock = threading.Lock()
 
 
 def _collect_readings(panel):
-    """优先取新鲜 DOM 真实值（含用户实际模式），否则用云端模拟器。"""
+    """优先取用户面板最近一次 DOM 真实值（含模式/负载/故障），
+    模拟器仅在面板从未上报过时兜底 —— 保证诊断与截图始终复刻用户界面。"""
     global _dom_states
     now = time.time()
     with _dom_lock:
         dom = dict(_dom_states.get(panel) or {}) if _dom_states else {}
-    if dom and isinstance(dom.get("load"), (int, float)) and now - dom.get("_recv_ts", 0) <= DOM_STATE_TTL:
+    if dom and isinstance(dom.get("load"), (int, float)):
         return float(dom["load"]), dom.get("sensors", {}), "dom", dom.get("mode", "auto")
     sim = _sim.tick(panel)
     return sim["load"], sim["sensors"], "sim", "auto"
