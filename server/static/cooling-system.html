@@ -372,10 +372,18 @@ function applyFaultUI() {
   const desc = document.getElementById('faultDesc');
   if (faultActive) {
     injectBtn.style.display = 'none';
-    resolveBtn.style.display = 'inline-block';
-    alert.classList.add('on');
-    text.textContent = '⚠ 异常已注入，数据卡死在异常值：' + sc.label + ' — ' + sc.desc;
-    desc.textContent = '异常持续中，点击「✓ 已处理」恢复正常监测';
+    if (faultMode === 'normal') {
+      // agent 正常快照注入（截图一致性模式）：数据冻结但不亮红条
+      resolveBtn.style.display = 'none';
+      alert.classList.remove('on');
+      text.textContent = '';
+      desc.textContent = '数据快照由云端智能体注入（截图一致性模式）';
+    } else {
+      resolveBtn.style.display = 'inline-block';
+      alert.classList.add('on');
+      text.textContent = '⚠ 异常已注入，数据卡死在异常值：' + sc.label + ' — ' + sc.desc;
+      desc.textContent = '异常持续中，点击「✓ 已处理」恢复正常监测';
+    }
   } else {
     injectBtn.style.display = 'inline-block';
     resolveBtn.style.display = 'none';
@@ -462,6 +470,29 @@ function tick() {
 
 // ===== INIT =====
 updateSensors();
+
+// ===== agent 截图数据注入（与云端判定完全一致，禁止漂移/噪声） =====
+(function(){
+  const qp = new URLSearchParams(window.location.search);
+  const inj = qp.get('sensors');
+  if(!inj) return;
+  try{
+    const b64 = inj.replace(/-/g,'+').replace(/_/g,'/');
+    const dec = JSON.parse(decodeURIComponent(escape(atob(b64))));
+    if(!dec || typeof dec !== 'object') return;
+    frozenLoad = realLoad;
+    frozenSensors = {};
+    for(const name in COOLING_BASELINE){
+      const v = parseFloat(dec[name]);
+      frozenSensors[name] = isFinite(v) ? +v.toFixed(2) : 0;
+    }
+    faultActive = true;                          // 冻结：updateLoad/updateSensors 不再重算
+    for(const name in COOLING_BASELINE) sensorValues[name] = frozenSensors[name];
+    const fk = qp.get('fault');
+    faultMode = (fk && fk !== 'normal' && FAULT_SCENARIOS[fk]) ? fk : 'normal';
+  }catch(e){ /* 注入失败则回落到页面自身模拟 */ }
+})();
+
 updateLoadDisplay();
 renderParams();
 applyFaultUI();

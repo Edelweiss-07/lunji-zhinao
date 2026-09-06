@@ -239,8 +239,12 @@ def _prune_shots(shots_dir: Path, keep: int = 10):
         pass
 
 
-def capture_panel(load: float, fault: str, panel: str):
-    """headless Chromium 打开面板页面真实截图；失败返回 None（回退无截图模式）。"""
+def capture_panel(load: float, fault: str, panel: str, raw_sensors=None):
+    """headless Chromium 打开面板页面真实截图；失败返回 None（回退无截图模式）。
+
+    raw_sensors：判定用的实时数据（DOM 或模拟器）。通过 URL ?sensors=<base64url>
+    注入页面并冻结显示，保证截图数值与判定/展示数值完全一致。
+    """
     global _last_capture_ok, _last_capture_err
     try:
         from playwright.sync_api import sync_playwright
@@ -256,6 +260,23 @@ def capture_panel(load: float, fault: str, panel: str):
     page_file = PANELS[panel]["url"]
     url = (f"http://127.0.0.1:{port}/static/{page_file}"
            f"?mode=manual&load={load}&fault={fault}")
+    if raw_sensors:
+        try:
+            _snap = {}
+            for _k, _v in raw_sensors.items():
+                try:
+                    _f = float(_v)
+                    if math.isfinite(_f):
+                        _snap[_k] = round(_f, 2)
+                except (TypeError, ValueError):
+                    pass
+            if _snap:
+                inj = base64.urlsafe_b64encode(
+                    json.dumps(_snap, ensure_ascii=False).encode("utf-8")
+                ).decode("ascii").rstrip("=")
+                url += f"&sensors={inj}"
+        except Exception as e:
+            print(f"[agent] 截图快照注入失败: {e}", flush=True)
     base_args = ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
                  "--disable-extensions", "--hide-scrollbars"]
     # 策略1：省内存参数（512MB 小容器优先）；失败自动降级策略2：常规参数
@@ -463,7 +484,7 @@ def run_once(panel):
             fault = dom.get("fault", "normal")
         else:
             fault = _sim.states[panel]["fault"] if panel in _sim.states else "normal"
-        img = capture_panel(load, fault, panel)
+        img = capture_panel(load, fault, panel, raw_sensors)
         sensors, concerns, overall = _judge(panel, load, raw_sensors)
         now = datetime.datetime.now()
         anomalies = _collect_anomalies(panel, load, sensors)

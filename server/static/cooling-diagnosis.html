@@ -210,6 +210,7 @@ const COOLING_BASELINE = {
 const LOADS = [25, 50, 75, 90, 100, 110];
 const AI_API = '/agent';
 const VIS_METHOD = {vision:'DSR1 真视觉', dom:'读DOM', sim:'云端模拟'};
+const CARD_LABEL = {vision:'DSR1 视觉读数（截图）', sim:'DSR1 云端读数（模拟）', dom:'DSR1 云端读数（实时DOM）'};
 let _latestTime = null;
 
 function getBaselineAt(name, load) {
@@ -232,7 +233,7 @@ function statusToTag(s){
   return'unknown';
 }
 
-function renderVisionCards(sensors, load){
+function renderVisionCards(sensors, load, method){
   const grid = document.getElementById('visionGrid');
   if(!sensors || !Object.keys(sensors).length){
     grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--tx3);padding:20px;text-align:center;background:var(--bg-panel);border:1px dashed var(--border);border-radius:8px">尚无视觉读数（等待 agent 完成首次扫描）</div>';
@@ -262,7 +263,7 @@ function renderVisionCards(sensors, load){
         </div>
         <div class="vc-compare">
           <div class="vc-cell">
-            <div class="vc-cell-label">🤖 DSR1 视觉读数</div>
+            <div class="vc-cell-label">🤖 ${CARD_LABEL[method]||'DSR1 视觉读数'}</div>
             <div class="vc-cell-val ${mutedClass}">${cellContent}</div>
           </div>
           <div class="vc-cell">
@@ -401,7 +402,7 @@ function applyData(data){
   const ce = document.getElementById('assessConcerns');
   ce.innerHTML = (a.concerns && a.concerns.length) ? a.concerns.map(c=>'<div class="assess-concern">⚠ '+c+'</div>').join('') : '';
 
-  renderVisionCards(data.sensors||{}, data.load);
+  renderVisionCards(data.sensors||{}, data.load, data.vision_method);
 
   // 截图：走云端 /agent/screenshot（返回最新诊断的 PNG）
   if(data.screenshot){
