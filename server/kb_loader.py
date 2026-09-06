@@ -288,7 +288,7 @@ class KnowledgeRetriever:
         lines = []
         used = 0
         for seg in results:
-            content = seg.content[:1200]
+            content = seg.content[:2000]
             chunk = f"### （来源：{seg.kb_name}）\n{content}\n" if with_source else f"{content}\n"
             if used + len(chunk) > max_chars and lines:
                 break
