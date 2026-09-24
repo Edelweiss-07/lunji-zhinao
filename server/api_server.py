@@ -353,11 +353,20 @@ async def serve_history():
 
 @app.get("/energy")
 async def serve_energy():
-    """Serve the energy-efficiency management module (12K98ME-C7)."""
-    page = static_dir / "energy-system.html"
+    """Serve the energy-efficiency Q&A agent (12K98ME-C7, 一问一答)."""
+    page = static_dir / "energy-ask.html"
     if page.exists():
         return FileResponse(str(page), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
     return {"message": "Energy page not found — check static/ dir"}
+
+
+@app.get("/energy-panel")
+async def serve_energy_panel():
+    """Serve the energy-efficiency monitoring panel (SFOC curve / 经济航速 / CII)."""
+    page = static_dir / "energy-system.html"
+    if page.exists():
+        return FileResponse(str(page), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    return {"message": "Energy panel not found — check static/ dir"}
 
 
 if __name__ == "__main__":

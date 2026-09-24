@@ -201,11 +201,11 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
   </div>
 
   <!-- 跳转横幅：能效管理与碳合规 -->
-  <div class="jump-banner energy" id="jumpBannerEnergy" onclick="goEnergySystem()" title="点击进入能效管理与碳合规模块（12K98ME-C7）">
+  <div class="jump-banner energy" id="jumpBannerEnergy" onclick="goEnergySystem()" title="点击进入能效管理智能问答（12K98ME-C7）">
     <div class="jump-banner-icon">🌿</div>
     <div class="jump-banner-info">
-      <div class="jump-banner-title">立刻进入「能效管理」碳合规模块 <span style="font-size:11px;padding:1px 7px;border:1px solid var(--yellow);color:var(--yellow);border-radius:4px;margin-left:6px">测试</span></div>
-      <div class="jump-banner-desc">SFOC 负荷特性曲线 · 经济航速分析 · CII/EEXI 碳合规核算 · 能效优化建议引擎</div>
+      <div class="jump-banner-title">立刻进入「能效管理」智能问答 <span style="font-size:11px;padding:1px 7px;border:1px solid var(--yellow);color:var(--yellow);border-radius:4px;margin-left:6px">测试</span></div>
+      <div class="jump-banner-desc">一问一答 · 能效优化知识库 · 经济航速 / CII 评级 / EEXI 达标 / 碳合规 / 省油降耗</div>
     </div>
     <div class="jump-banner-arrow">→</div>
   </div>
@@ -332,8 +332,8 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
     <button class="action-btn energy" id="enterEnergyBtn">
       <span class="ab-icon">🌿</span>
       <div class="ab-info">
-        <div class="ab-title">进入能效管理（碳合规）</div>
-        <div class="ab-desc">12K98ME-C7 · SFOC 曲线 · 经济航速 · CII/EEXI 核算</div>
+        <div class="ab-title">进入能效管理智能问答</div>
+        <div class="ab-desc">12K98ME-C7 · 一问一答 · 经济航速 / CII 评级 / 碳合规</div>
       </div>
       <span class="ab-arrow">→</span>
     </button>
@@ -761,8 +761,8 @@ document.getElementById('enterFuelPanelBtn').addEventListener('click', () => {
 });
 
 document.getElementById('enterEnergyBtn').addEventListener('click', () => {
-  addLog('OK', 'UI', '进入能效管理与碳合规模块（SFOC 曲线 / 经济航速 / CII 核算）');
-  window.open('/static/energy-system.html', '_blank');
+  addLog('OK', 'UI', '进入能效管理智能问答（一问一答 · 能效优化知识库）');
+  window.open('/static/energy-ask.html', '_blank');
 });
 
 document.getElementById('panelCloseBtn').addEventListener('click', () => {
@@ -794,8 +794,8 @@ function goFuelSystem() {
 }
 
 function goEnergySystem() {
-  addLog('OK', 'UI', '通过门户跳转横幅进入能效管理与碳合规模块');
-  window.open('/static/energy-system.html', '_blank');
+  addLog('OK', 'UI', '通过门户跳转横幅进入能效管理智能问答');
+  window.open('/static/energy-ask.html', '_blank');
 }
 
 // ===== INIT =====
