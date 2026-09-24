@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>能效管理模块 | 12K98ME-C7</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-deep:#04100C;--bg-panel:#08170F;--bg-card:#0C1F15;--bg-card-h:#12301F;
+  --border:rgba(0,214,143,0.18);--border-l:rgba(0,214,143,0.38);
+  --tx:#E8F5EE;--tx2:#9CC0AE;--tx3:#5a7a68;
+  --teal:#00D68F;--teal-glow:rgba(0,214,143,0.30);
+  --green:#00D68F;--yellow:#ffb700;--orange:#ff6b35;--red:#ff3b3b;--blue:#3b82f6;--cyan:#00d4ff;--purple:#8b5cf6;
+}
+body{font-family:'Inter','Microsoft YaHei','Segoe UI',sans-serif;background:var(--bg-deep);color:var(--tx);min-height:100vh;font-size:14px;background-image:radial-gradient(ellipse at 20% 0%,rgba(0,214,143,0.07) 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,rgba(0,212,255,0.05) 0%,transparent 55%)}
+.mono{font-family:'SF Mono','Cascadia Code','Consolas',monospace}
+
+/* 顶部 */
+.hdr{padding:24px 32px 16px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(0,214,143,0.05) 0%,transparent 100%)}
+.hdr-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hdr-icon{font-size:28px;color:var(--teal);filter:drop-shadow(0 0 10px var(--teal-glow))}
+.hdr-title{font-size:22px;font-weight:700;color:var(--tx);letter-spacing:0.5px}
+.hdr-sub{font-size:12px;color:var(--tx3);font-family:'SF Mono',monospace;letter-spacing:0.05em;margin-top:2px}
+.hdr-badge{margin-left:auto;display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(0,214,143,0.08);border:1px solid rgba(0,214,143,0.25);border-radius:20px;font-size:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.test-tag{padding:2px 9px;background:rgba(255,183,0,0.15);border:1px solid rgba(255,183,0,0.4);color:var(--yellow);border-radius:4px;font-size:11px;font-weight:600}
+
+/* 知识库标识 */
+.kb-banner{margin:16px 32px 0;padding:12px 16px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:10px;font-size:12px;color:var(--tx2);line-height:1.6;display:flex;align-items:flex-start;gap:10px}
+.kb-banner-tag{padding:2px 8px;background:rgba(0,212,255,0.15);color:var(--cyan);border-radius:4px;font-weight:600;font-size:11px;flex-shrink:0;margin-top:1px}
+
+.main{padding:20px 32px 40px;max-width:1400px;margin:0 auto}
+
+/* 实时指标条 */
+.load-bar{display:flex;align-items:center;gap:12px;padding:16px 20px;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;flex-wrap:wrap}
+.load-label{font-size:13px;color:var(--tx2);font-weight:500}
+.load-btn{padding:10px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--tx2);cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:all .2s}
+.load-btn:hover{border-color:var(--border-l);background:var(--bg-card-h);color:var(--tx)}
+.load-btn.active{background:rgba(0,214,143,0.15);border-color:var(--teal);color:var(--teal);box-shadow:0 0 16px rgba(0,214,143,0.2)}
+.load-info{font-size:12px;color:var(--tx3);font-family:'SF Mono',monospace;display:flex;align-items:center;gap:8px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.5s infinite}
+
+/* 指标卡 */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+@media (max-width:1280px){.kpi-grid{grid-template-columns:repeat(5,1fr)}}
+.kpi{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;transition:all .2s}
+.kpi:hover{border-color:var(--border-l);box-shadow:0 4px 24px rgba(0,214,143,0.1)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--teal),transparent);opacity:.5}
+.kpi-name{font-size:12px;color:var(--tx2);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.kpi-val{font-size:26px;font-weight:700;font-family:'SF Mono',monospace;color:var(--tx);line-height:1.1}
+.kpi-unit{font-size:12px;color:var(--tx2);font-weight:400;margin-left:4px}
+.kpi-sub{font-size:11px;color:var(--tx3);margin-top:6px;font-family:'SF Mono',monospace}
+.kpi-sub.ok{color:var(--green)}
+.kpi-sub.warn{color:var(--yellow)}
+.kpi-sub.err{color:var(--red)}
+
+/* 通用卡片 */
+.card{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:20px}
+.card-title{font-size:15px;font-weight:600;color:var(--tx);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card-desc{font-size:12px;color:var(--tx3);margin-bottom:16px;line-height:1.6}
+.two-col{display:grid;grid-template-columns:1.35fr 1fr;gap:20px;margin-bottom:20px}
+@media(max-width:1000px){.two-col{grid-template-columns:1fr}}
+
+/* 表单 */
+.field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;color:var(--tx2);font-weight:500}
+.field input,.field select{padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--tx);font-family:'SF Mono',monospace;font-size:14px;outline:none;transition:border-color .2s}
+.field input:focus,.field select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,214,143,0.12)}
+.calc-btn{padding:11px 26px;background:linear-gradient(135deg,var(--teal) 0%,#00b377 100%);border:none;border-radius:8px;color:#04100C;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,214,143,0.3)}
+
+/* 结果块 */
+.result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:16px}
+.res{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.res-label{font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.res-val{font-size:20px;font-weight:700;font-family:'SF Mono',monospace;color:var(--teal)}
+.res-val.good{color:var(--green)}.res-val.warn{color:var(--yellow)}.res-val.bad{color:var(--red)}
+.res-note{font-size:11px;color:var(--tx3);margin-top:4px;font-family:'SF Mono',monospace}
+
+/* 评级徽章 */
+.grade-badge{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:14px;font-size:34px;font-weight:800;font-family:'SF Mono',monospace}
+.grade-A{background:rgba(0,214,143,0.15);color:#00D68F;border:2px solid #00D68F;box-shadow:0 0 24px rgba(0,214,143,0.35)}
+.grade-B{background:rgba(0,212,255,0.15);color:#00d4ff;border:2px solid #00d4ff;box-shadow:0 0 24px rgba(0,212,255,0.3)}
+.grade-C{background:rgba(255,183,0,0.15);color:#ffb700;border:2px solid #ffb700;box-shadow:0 0 24px rgba(255,183,0,0.3)}
+.grade-D{background:rgba(255,107,53,0.15);color:#ff6b35;border:2px solid #ff6b35;box-shadow:0 0 24px rgba(255,107,53,0.3)}
+.grade-E{background:rgba(255,59,59,0.15);color:#ff3b3b;border:2px solid #ff3b3b;box-shadow:0 0 24px rgba(255,59,59,0.35)}
+
+/* 建议列表 */
+.advice{display:flex;flex-direction:column;gap:10px}
+.adv{display:flex;gap:10px;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.55;border:1px solid var(--border);background:var(--bg-card)}
+.adv-ico{flex-shrink:0;font-size:15px;line-height:1.3}
+.adv.ok{border-color:rgba(0,214,143,0.35);background:rgba(0,214,143,0.07)}
+.adv.warn{border-color:rgba(255,183,0,0.35);background:rgba(255,183,0,0.07)}
+.adv.err{border-color:rgba(255,59,59,0.35);background:rgba(255,59,59,0.07)}
+.adv b{color:var(--tx)}
+
+/* 曲线图 */
+.chart-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px}
+svg{display:block;width:100%;height:auto}
+
+/* 知识库依据 */
+.kb-ref{background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:16px 20px;font-size:12px;color:var(--tx2);line-height:1.7}
+.kb-ref-title{font-size:13px;color:var(--teal);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.kb-ref ul{padding-left:20px;margin:0}
+.kb-ref li{margin-bottom:4px}
+.kb-ref code{background:var(--bg-card);padding:1px 6px;border-radius:4px;font-family:'SF Mono',monospace;color:var(--cyan);font-size:11px}
+
+.footer-note{margin-top:8px;font-size:11px;color:var(--tx3);line-height:1.7}
+
+@media(max-width:760px){
+  .hdr{padding:16px 20px 12px}
+  .main{padding:16px 20px 30px}
+  .kb-banner{margin:12px 20px 0;font-size:11px}
+  .load-btn{padding:8px 12px;font-size:12px}
+  .card{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-row">
+    <span class="hdr-icon">🌿</span>
+    <div>
+      <div class="hdr-title">能效管理与碳合规 <span class="test-tag">测试</span></div>
+      <div class="hdr-sub">MAN B&amp;W 12K98ME-C7 · MCR 72240 kW @ 104 rpm · Hull 1957 AA2877</div>
+    </div>
+    <div class="hdr-badge">
+      <div class="hdr-dot"></div>
+      <span style="color:var(--tx);font-weight:500">基于 MAN 专属能效知识库</span>
+    </div>
+  </div>
+</div>
+
+<div class="kb-banner">
+  <span class="kb-banner-tag">数据源</span>
+  <span>本模块基准来源于 <b style="color:var(--teal)">MAN 12K98ME-C7 专属能效优化知识库</b>（台架实测报告 AA2877 + IMO 能效法规体系 SEEMP/EEXI/CII/DCS），覆盖 SFOC 基准数据库、诊断规则库、优化规则库与碳合规条文。<b>经济航速、碳排放核算均为基于台架基准的工程估算</b>，实船须按船体阻力、海况、燃油品质修正。</span>
+</div>
+
+<div class="main">
+
+  <!-- 实时能效监控 -->
+  <div class="load-bar">
+    <span class="load-label">主机负载</span>
+    <div style="display:flex;align-items:baseline;gap:4px">
+      <span class="mono" id="loadVal" style="font-size:28px;font-weight:700;color:var(--teal);text-shadow:0 0 12px var(--teal-glow)">--</span>
+      <span style="font-size:14px;color:var(--tx2)">%</span>
+      <span id="loadTrend" style="font-size:16px;margin-left:6px;color:var(--tx3)">→</span>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="load-btn active" id="modeAuto" onclick="setMode('auto')">自动漂移</button>
+      <button class="load-btn" id="modeManual" onclick="setMode('manual')">手动</button>
+      <input type="range" id="loadSlider" min="25" max="110" value="78" step="0.5" oninput="manualLoad(this.value)" style="width:150px;accent-color:var(--teal);display:none">
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="load-info">
+        <span class="live-dot"></span>
+        <span id="loadInfo">实时模拟 · 能效 4 指标 · MAN KB</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 实时能效指标 -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-name">⚙ 轴功率</div>
+      <div class="kpi-val" id="kpiPower">--<span class="kpi-unit">kW</span></div>
+      <div class="kpi-sub" id="kpiPowerSub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-name">🔥 比油耗 SFOC</div>
+      <div class="kpi-val" id="kpiSfoc">--<span class="kpi-unit">g/kWh</span></div>
+      <div class="kpi-sub" id="kpiSfocSub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-name">⛽ 日燃油消耗</div>
+      <div class="kpi-val" id="kpiFuel">--<span class="kpi-unit">t/day</span></div>
+      <div class="kpi-sub" id="kpiFuelSub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-name">🌍 日 CO₂ 排放</div>
+      <div class="kpi-val" id="kpiCo2">--<span class="kpi-unit">t/day</span></div>
+      <div class="kpi-sub" id="kpiCo2Sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-name">🎯 能效区间判定</div>
+      <div class="kpi-val" id="kpiZone" style="font-size:19px">--</div>
+      <div class="kpi-sub" id="kpiZoneSub">--</div>
+    </div>
+  </div>
+
+  <!-- 曲线 + 建议 -->
+  <div class="two-col">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-title">📉 SFOC 负荷特性曲线</div>
+      <div class="card-desc">台架实测校正值（AA2877，LCV 10200 kcal/kg）。SFOC 随负荷呈 <b style="color:var(--teal)">U 型曲线</b>，75% 负荷最低（168.64 g/kWh），绿色带为经济运行区间 70%~85% MCR。</div>
+      <div class="chart-wrap">
+        <svg id="sfocChart" viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="footer-note" id="curveNote">白点为台架实测 6 个负荷点，蓝点为当前实时工况点。</div>
+    </div>
+
+    <div class="card" style="margin-bottom:0">
+      <div class="card-title">🧠 能效优化建议引擎</div>
+      <div class="card-desc">依据优化规则库，按当前实时工况自动输出可执行建议与节油潜力估算。</div>
+      <div class="advice" id="adviceBox"></div>
+    </div>
+  </div>
+
+  <!-- 经济航速分析器 -->
+  <div class="card">
+    <div class="card-title">🚢 经济航速分析器</div>
+    <div class="card-desc">基于螺旋桨定律 <b style="color:var(--teal)">功率 ≈ 航速³</b>，估算降速航行带来的燃油与碳排放收益。输入当前航速与目标航速即可测算。</div>
+    <div class="field-row">
+      <div class="field">
+        <label>当前航速 (kn)</label>
+        <input type="number" id="v1" value="22.0" step="0.1" min="5" max="30">
+      </div>
+      <div class="field">
+        <label>目标航速 (kn)</label>
+        <input type="number" id="v2" value="19.8" step="0.1" min="5" max="30">
+      </div>
+      <div class="field">
+        <label>当前轴功率 (kW)</label>
+        <input type="number" id="p1" value="54214" step="100" min="1000">
+      </div>
+      <div class="field">
+        <label>年航行天数</label>
+        <input type="number" id="days" value="300" step="10" min="1" max="365">
+      </div>
+      <div class="field" style="justify-content:flex-end">
+        <button class="calc-btn" onclick="calcSpeed()">开始测算</button>
+      </div>
+    </div>
+    <div class="result-grid" id="speedResult">
+      <div class="res"><div class="res-label">目标功率</div><div class="res-val" id="rP2">--</div><div class="res-note" id="rP2n">按 V³ 换算</div></div>
+      <div class="res"><div class="res-label">日节油量</div><div class="res-val good" id="rSave">--</div><div class="res-note" id="rSaveN">对比当前工况</div></div>
+      <div class="res"><div class="res-label">年节油量</div><div class="res-val good" id="rSaveY">--</div><div class="res-note">按年航行天数折算</div></div>
+      <div class="res"><div class="res-label">年 CO₂ 减排</div><div class="res-val good" id="rCo2Y">--</div><div class="res-note">HFO 碳排放因子 3.114</div></div>
+      <div class="res"><div class="res-label">年节省燃油成本</div><div class="res-val" id="rCost">--</div><div class="res-note" id="rCostN">按 600 USD/t 估算</div></div>
+    </div>
+    <div class="footer-note" id="speedNote"></div>
+  </div>
+
+  <!-- 碳合规看板 -->
+  <div class="card">
+    <div class="card-title">🌍 碳合规看板（CII / EEXI / DCS）</div>
+    <div class="card-desc">按 IMO MEPC.328(76) / 329(76) 计算年度营运碳强度指标（CII）与评级，并给出年度折减要求与整改触发条件。</div>
+    <div class="field-row">
+      <div class="field">
+        <label>年度燃油消耗 (t)</label>
+        <input type="number" id="fc" value="8000" step="100" min="1">
+      </div>
+      <div class="field">
+        <label>船舶载重吨 dwt</label>
+        <input type="number" id="dwt" value="200000" step="1000" min="100">
+      </div>
+      <div class="field">
+        <label>年航行距离 (n mile)</label>
+        <input type="number" id="dist" value="60000" step="1000" min="100">
+      </div>
+      <div class="field">
+        <label>参考 CII 基准 (gCO₂/dwt·nm)</label>
+        <input type="number" id="refCii" value="2.50" step="0.01" min="0.1">
+      </div>
+      <div class="field">
+        <label>评级年份（折减）</label>
+        <select id="year">
+          <option value="0.97">2023 ×0.97</option>
+          <option value="0.94">2024 ×0.94</option>
+          <option value="0.91">2025 ×0.91</option>
+          <option value="0.88" selected>2026 ×0.88</option>
+        </select>
+      </div>
+      <div class="field" style="justify-content:flex-end">
+        <button class="calc-btn" onclick="calcCii()">核算评级</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:6px">
+      <div class="grade-badge grade-B" id="gradeBadge">--</div>
+      <div class="result-grid" style="flex:1;margin-top:0">
+        <div class="res"><div class="res-label">年度营运 CII</div><div class="res-val" id="rCii">--</div><div class="res-note">Σ(FC×CF)/(dwt×Dt)</div></div>
+        <div class="res"><div class="res-label">所需 CII（折减后）</div><div class="res-val" id="rReq">--</div><div class="res-note" id="rReqN">基准 × 折减系数</div></div>
+        <div class="res"><div class="res-label">评级系数</div><div class="res-val" id="rRatio">--</div><div class="res-note">实际 ÷ 所需</div></div>
+        <div class="res"><div class="res-label">年度 CO₂ 排放</div><div class="res-val" id="rCo2">--</div><div class="res-note">FC × 3.114</div></div>
+      </div>
+    </div>
+    <div class="footer-note" id="ciiNote"></div>
+    <div class="footer-note" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <b style="color:var(--tx2)">评级阈值</b>：A ≤0.80 ｜ B 0.80~0.94 ｜ C 0.94~1.06 ｜ D 1.06~1.18 ｜ E &gt;1.18。
+      <b style="color:var(--tx2)">整改触发</b>：连续三年 D 级或上一年度 E 级须提交整改行动计划（CAP），记入 SEEMP Part III。
+      <b style="color:var(--tx2)">DCS</b>：5000GT+ 国际航行船舶每年 1.1–3.31 向船旗国申报上年度燃油数据（MEPC.278(70)）。
+    </div>
+  </div>
+
+  <!-- 知识库依据 -->
+  <div class="kb-ref">
+    <div class="kb-ref-title">📚 知识库依据</div>
+    <ul>
+      <li><b>能效优化</b>（58 段）：12K98ME-C7 台架实测 SFOC 基准（AA2877，6 负荷点）、诊断规则库、优化规则库</li>
+      <li><b>油耗监测</b>（2 段）：多负载油耗正常/异常判定基准</li>
+      <li><b>负载指数</b>（13 段）：2009-05-19 工厂测试报告（AA2877 / Hull 1957）功率-转速-压力对应关系</li>
+      <li><b>法规体系</b>：SEEMP（MEPC.346(78)）、EEXI（MEPC.328(76)）、CII（MEPC.329(76)）、DCS（MEPC.278(70)）</li>
+      <li>核心定量关系：SFOC 呈 U 型（75% 最优 168.64 g/kWh）；Pmax 每提升 1 bar → SFOC 降 0.20~0.30 g/kWh（硬限制 <code>ΔP=Pmax-Pcomp≤35bar</code>）；功率 ≈ 航速³</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// MAN B&W 12K98ME-C7 能效基准（能效优化知识库 · AA2877 台架实测校正值）
+// ═══════════════════════════════════════════════════════════════
+const MCR = 72240;          // kW @ 104 rpm
+const MCR_RPM = 104;
+const CF_HFO = 3.114;       // kg CO2 / kg fuel（IMO 默认值）
+const ECON_LOW = 70, ECON_HIGH = 85;   // 经济运行区间 %MCR
+
+// 台架实测 6 负荷点（校正至 ISO + LCV 10200 kcal/kg）
+const PTS = [
+  {load:25,  rpm:65.5,  power:18061, sfoc:181.11, pmax:74.2,  pcomp:49.7},
+  {load:50,  rpm:82.5,  power:36135, sfoc:170.25, pmax:112.5, pcomp:75.7},
+  {load:75,  rpm:94.5,  power:54214, sfoc:168.64, pmax:143.6, pcomp:107.8},
+  {load:90,  rpm:100.4, power:65021, sfoc:171.58, pmax:150.4, pcomp:120.3},
+  {load:100, rpm:104.0, power:72240, sfoc:175.39, pmax:150.0, pcomp:132.1},
+  {load:110, rpm:107.4, power:79507, sfoc:179.00, pmax:150.0, pcomp:141.7},
+];
+
+// 插值：负载 → SFOC / 功率
+function interp(key, load){
+  if(load <= PTS[0].load) return PTS[0][key];
+  if(load >= PTS[PTS.length-1].load) return PTS[PTS.length-1][key];
+  for(let i=0;i<PTS.length-1;i++){
+    if(load >= PTS[i].load && load <= PTS[i+1].load){
+      const t = (load - PTS[i].load)/(PTS[i+1].load - PTS[i].load);
+      return +(PTS[i][key] + t*(PTS[i+1][key]-PTS[i][key])).toFixed(2);
+    }
+  }
+  return PTS[3][key];
+}
+const sfocAt = l => interp('sfoc', l);
+const powerAt = l => Math.round(interp('power', l));
+// 日油耗 t/day = 功率(kW) × SFOC(g/kWh) × 24h / 1e6
+const fuelPerDay = (kw, sfoc) => +(kw * sfoc * 24 / 1e6).toFixed(2);
+const co2PerDay  = (fuelT) => +(fuelT * CF_HFO).toFixed(2);
+
+// ═══════════ 实时工况模拟（自动漂移） ═══════════
+let realLoad = 78, prevLoad = 78, loadPhase = 0, mode = 'auto';
+
+function updateLoad(){
+  if(mode !== 'auto') return;
+  prevLoad = realLoad;
+  loadPhase += 0.012;
+  realLoad = 79 + Math.sin(loadPhase)*11 + Math.sin(loadPhase*2.1)*3 + (Math.random()-0.5)*1.6;
+  realLoad = Math.max(25, Math.min(110, realLoad));
+}
+function setMode(m){
+  mode = m;
+  document.getElementById('modeAuto').classList.toggle('active', m==='auto');
+  document.getElementById('modeManual').classList.toggle('active', m==='manual');
+  document.getElementById('loadSlider').style.display = m==='manual' ? 'block' : 'none';
+  if(m==='manual') document.getElementById('loadSlider').value = realLoad;
+}
+function manualLoad(v){
+  if(mode==='manual'){ prevLoad = realLoad; realLoad = +v; }
+}
+
+function zoneOf(load){
+  if(load >= ECON_LOW && load <= ECON_HIGH) return {key:'ok',   text:'经济运行区间', cls:'ok'};
+  if(load < 50)                              return {key:'err',  text:'低负荷低效区', cls:'err'};
+  if(load < ECON_LOW)                        return {key:'warn', text:'接近经济区（偏低）', cls:'warn'};
+  if(load <= 95)                             return {key:'warn', text:'略高于经济区', cls:'warn'};
+  return {key:'err', text:'高负荷高油耗区', cls:'err'};
+}
+
+// ═══════════ 实时指标渲染 ═══════════
+function renderLive(){
+  const load = +realLoad.toFixed(1);
+  const sfoc = sfocAt(load);
+  const kw   = powerAt(load);
+  const fuel = fuelPerDay(kw, sfoc);
+  const co2  = co2PerDay(fuel);
+  const z    = zoneOf(load);
+
+  document.getElementById('loadVal').textContent = load.toFixed(1);
+  const tr = realLoad > prevLoad + 0.1 ? '↑' : realLoad < prevLoad - 0.1 ? '↓' : '→';
+  const te = document.getElementById('loadTrend');
+  te.textContent = tr;
+  te.style.color = tr==='↑' ? 'var(--orange)' : tr==='↓' ? 'var(--cyan)' : 'var(--tx3)';
+  document.getElementById('loadInfo').textContent =
+    mode==='auto' ? '自动漂移 · 实时模拟 · MAN KB' : '手动 · 负载 ' + load.toFixed(1) + '%';
+
+  document.getElementById('kpiPower').innerHTML = kw.toLocaleString() + '<span class="kpi-unit">kW</span>';
+  document.getElementById('kpiPowerSub').textContent =
+    (load).toFixed(1) + '% MCR · ' + interp('rpm', load) + ' rpm';
+
+  document.getElementById('kpiSfoc').innerHTML = sfoc.toFixed(2) + '<span class="kpi-unit">g/kWh</span>';
+  const dSfoc = sfoc - sfocAt(75);
+  document.getElementById('kpiSfocSub').textContent = 'vs 75% 最优点 ' + (dSfoc>=0?'+':'') + dSfoc.toFixed(2) + ' g/kWh';
+  document.getElementById('kpiSfocSub').className = 'kpi-sub ' + (dSfoc <= 1 ? 'ok' : dSfoc <= 5 ? 'warn' : 'err');
+
+  document.getElementById('kpiFuel').innerHTML = fuel.toFixed(1) + '<span class="kpi-unit">t/day</span>';
+  document.getElementById('kpiFuelSub').textContent = '按 ' + kw.toLocaleString() + ' kW 计';
+
+  document.getElementById('kpiCo2').innerHTML = co2.toFixed(1) + '<span class="kpi-unit">t/day</span>';
+  document.getElementById('kpiCo2Sub').textContent = '年约 ' + (co2*300).toFixed(0) + ' t（300 天）';
+
+  document.getElementById('kpiZone').textContent = z.text;
+  document.getElementById('kpiZone').style.color =
+    z.key==='ok' ? 'var(--green)' : z.key==='warn' ? 'var(--yellow)' : 'var(--red)';
+  document.getElementById('kpiZoneSub').textContent = '经济区间 ' + ECON_LOW + '~' + ECON_HIGH + '% MCR';
+  document.getElementById('kpiZoneSub').className = 'kpi-sub ' + z.cls;
+
+  renderAdvice(load, sfoc, kw);
+  drawChart(load);
+}
+
+// ═══════════ 优化建议引擎 ═══════════
+function renderAdvice(load, sfoc, kw){
+  const out = [];
+  const z = zoneOf(load);
+
+  if(z.key === 'ok'){
+    out.push({c:'ok', i:'✅', t:`<b>当前处于经济运行区间</b>（${load.toFixed(1)}% MCR）。SFOC ${sfoc.toFixed(2)} g/kWh，接近 75% 最优点的 ${sfocAt(75).toFixed(2)} g/kWh。建议维持该负荷带，避免频繁大幅变负荷。`});
+  } else if(load < 50){
+    const gain = fuelPerDay(kw, sfoc) - fuelPerDay(powerAt(75), sfocAt(75));
+    out.push({c:'err', i:'⚠', t:`<b>低负荷低效区</b>（${load.toFixed(1)}% MCR）。此区间 SFOC 高达 ${sfoc.toFixed(2)} g/kWh，比 75% 最优点高 ${(sfoc-sfocAt(75)).toFixed(2)} g/kWh。建议提升至 ${ECON_LOW}~${ECON_HIGH}% MCR，理论日节油约 <b>${gain.toFixed(1)} t/day</b>。`});
+  } else if(load < ECON_LOW){
+    out.push({c:'warn', i:'◐', t:`<b>接近经济区但偏低</b>（${load.toFixed(1)}% MCR）。建议小幅提升负荷至 ${ECON_LOW}% 以上，SFOC 可再降约 ${(sfoc - sfocAt(78)).toFixed(2)} g/kWh。`});
+  } else if(load <= 95){
+    out.push({c:'warn', i:'◐', t:`<b>略高于经济区</b>（${load.toFixed(1)}% MCR）。此区间 SFOC 已回升至 ${sfoc.toFixed(2)} g/kWh，比最优点高 ${(sfoc-sfocAt(75)).toFixed(2)} g/kWh。若非航期紧张，建议回落至 ${ECON_HIGH}% 以内。`});
+  } else {
+    out.push({c:'err', i:'⚠', t:`<b>高负荷高油耗区</b>（${load.toFixed(1)}% MCR）。SFOC ${sfoc.toFixed(2)} g/kWh 显著高于最优区，且长期 >95% 负荷会加速磨损。建议仅在必要航段使用，并缩短持续时间。`});
+  }
+
+  // Pmax 调谐（每 bar 节油 0.20~0.30 g/kWh）
+  const pmaxNow = interp('pmax', load);
+  const pmaxDesign = 150.0;
+  const gap = pmaxDesign - pmaxNow;
+  if(gap >= 5){
+    const saveMid = +(gap * 0.25).toFixed(2);
+    out.push({c:'ok', i:'🔧', t:`<b>Pmax 调谐建议</b>：当前 ${pmaxNow.toFixed(1)} bar，低于设计值 ${pmaxDesign} bar 约 ${gap.toFixed(1)} bar。按每提升 1 bar 节油 0.20~0.30 g/kWh 估算，可回收约 <b>${saveMid} g/kWh</b>。务必监控硬限制 <code>ΔP=Pmax-Pcomp≤35 bar</code>。`});
+  } else {
+    out.push({c:'ok', i:'🔧', t:`<b>Pmax 状态良好</b>：当前 ${pmaxNow.toFixed(1)} bar，已接近设计值 ${pmaxDesign} bar，无额外调谐空间。继续监控 ΔP=Pmax-Pcomp≤35 bar。`});
+  }
+
+  // 气缸平衡
+  out.push({c:'warn', i:'⚖', t:`<b>气缸平衡检查</b>：定期用 PMI 检测 12 缸 Pmax 偏差，控制各缸 Pmax 偏差在 <b>±3 bar</b> 内、各缸排气温度偏差在 <b>±30℃</b> 内。不平衡会造成个别缸超负荷，整体油耗上升。`});
+
+  // 经济航速联动
+  out.push({c:'ok', i:'🚢', t:`<b>航速优化联动</b>：功率 ≈ 航速³，降速 10% 约降功率 27%。可在下方「经济航速分析器」测算具体节油与 CO₂ 减排量。`});
+
+  document.getElementById('adviceBox').innerHTML = out.map(a =>
+    `<div class="adv ${a.c}"><span class="adv-ico">${a.i}</span><span>${a.t}</span></div>`
+  ).join('');
+}
+
+// ═══════════ SFOC U 型曲线 ═══════════
+function drawChart(curLoad){
+  const W = 760, H = 300;
+  const L = 62, R = 726, T = 26, B = 250;
+  const x = l => L + (l - 25) / (110 - 25) * (R - L);
+  const y = s => B - (s - 166) / (183 - 166) * (B - T);
+
+  let g = '';
+
+  // 经济区间带
+  g += `<rect x="${x(ECON_LOW).toFixed(1)}" y="${T}" width="${(x(ECON_HIGH)-x(ECON_LOW)).toFixed(1)}" height="${B-T}" fill="rgba(0,214,143,0.10)"/>`;
+  g += `<text x="${((x(ECON_LOW)+x(ECON_HIGH))/2).toFixed(1)}" y="${T+14}" fill="#00D68F" font-size="11" text-anchor="middle" font-weight="600">经济区间 ${ECON_LOW}~${ECON_HIGH}%</text>`;
+
+  // 网格 + Y 轴
+  for(let s = 168; s <= 182; s += 2){
+    const yy = y(s);
+    g += `<line x1="${L}" y1="${yy.toFixed(1)}" x2="${R}" y2="${yy.toFixed(1)}" stroke="rgba(0,214,143,0.10)" stroke-width="1"/>`;
+    g += `<text x="${L-10}" y="${(yy+4).toFixed(1)}" fill="#5a7a68" font-size="10.5" text-anchor="end" font-family="monospace">${s}</text>`;
+  }
+  g += `<text x="16" y="${(T+B)/2}" fill="#9CC0AE" font-size="11" text-anchor="middle" transform="rotate(-90 16 ${(T+B)/2})">SFOC (g/kWh)</text>`;
+
+  // X 轴
+  g += `<line x1="${L}" y1="${B}" x2="${R}" y2="${B}" stroke="rgba(0,214,143,0.3)" stroke-width="1"/>`;
+  PTS.forEach(p => {
+    g += `<line x1="${x(p.load).toFixed(1)}" y1="${B}" x2="${x(p.load).toFixed(1)}" y2="${B+5}" stroke="rgba(0,214,143,0.3)"/>`;
+    g += `<text x="${x(p.load).toFixed(1)}" y="${B+19}" fill="#5a7a68" font-size="10.5" text-anchor="middle" font-family="monospace">${p.load}%</text>`;
+  });
+  g += `<text x="${(L+R)/2}" y="${B+40}" fill="#9CC0AE" font-size="11" text-anchor="middle">主机负荷 (% MCR)</text>`;
+
+  // U 型曲线（用细密插值画平滑曲线）
+  let d = '';
+  for(let l = 25; l <= 110; l += 1){
+    d += (l===25 ? 'M' : 'L') + x(l).toFixed(1) + ' ' + y(sfocAt(l)).toFixed(1) + ' ';
+  }
+  g += `<path d="${d}" fill="none" stroke="#00D68F" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(0,214,143,0.5))"/>`;
+
+  // 台架实测点
+  PTS.forEach(p => {
+    g += `<circle cx="${x(p.load).toFixed(1)}" cy="${y(p.sfoc).toFixed(1)}" r="4.5" fill="#E8F5EE" stroke="#04100C" stroke-width="1.5"/>`;
+  });
+  // 标注最低点
+  g += `<text x="${(x(75)+10).toFixed(1)}" y="${(y(168.64)-9).toFixed(1)}" fill="#00D68F" font-size="11" font-weight="700">最优 168.64</text>`;
+
+  // 当前工况点
+  const cs = sfocAt(curLoad);
+  g += `<circle cx="${x(curLoad).toFixed(1)}" cy="${y(cs).toFixed(1)}" r="6.5" fill="#00d4ff" stroke="#04100C" stroke-width="2" style="filter:drop-shadow(0 0 8px rgba(0,212,255,0.8))"/>`;
+  g += `<text x="${x(curLoad).toFixed(1)}" y="${(y(cs)-13).toFixed(1)}" fill="#00d4ff" font-size="11" text-anchor="middle" font-family="monospace">当前 ${curLoad.toFixed(1)}% / ${cs.toFixed(2)}</text>`;
+
+  document.getElementById('sfocChart').innerHTML = g;
+}
+
+// ═══════════ 经济航速测算 ═══════════
+function calcSpeed(){
+  const v1 = parseFloat(document.getElementById('v1').value);
+  const v2 = parseFloat(document.getElementById('v2').value);
+  const p1 = parseFloat(document.getElementById('p1').value);
+  const days = parseFloat(document.getElementById('days').value);
+  const PRICE = 600;   // USD/t HFO 估算
+
+  if(!(v1>0 && v2>0 && p1>0 && days>0)){ alert('请输入有效数值'); return; }
+
+  const p2 = p1 * Math.pow(v2/v1, 3);          // 功率 ≈ 航速³
+  const l1 = Math.min(110, Math.max(25, p1/MCR*100));
+  const l2 = Math.min(110, Math.max(25, p2/MCR*100));
+  const f1 = fuelPerDay(p1, sfocAt(l1));
+  const f2 = fuelPerDay(p2, sfocAt(l2));
+  const saveD = f1 - f2;
+  const saveY = saveD * days;
+  const co2Y = saveY * CF_HFO;
+  const cost = saveY * PRICE;
+
+  document.getElementById('rP2').textContent = Math.round(p2).toLocaleString() + ' kW';
+  document.getElementById('rP2n').textContent = `负载 ${l2.toFixed(1)}% MCR（原 ${l1.toFixed(1)}%）`;
+  document.getElementById('rSave').textContent = saveD.toFixed(2) + ' t';
+  document.getElementById('rSaveN').textContent = `日油耗 ${f1.toFixed(1)} → ${f2.toFixed(1)} t`;
+  document.getElementById('rSaveY').textContent = saveY.toFixed(0) + ' t';
+  document.getElementById('rCo2Y').textContent = co2Y.toFixed(0) + ' t CO₂';
+  document.getElementById('rCost').textContent = '$' + Math.round(cost/1000).toLocaleString() + 'k';
+
+  document.getElementById('rSave').className = 'res-val ' + (saveD>0?'good':'bad');
+  document.getElementById('rSaveY').className = 'res-val ' + (saveY>0?'good':'bad');
+  document.getElementById('rCo2Y').className = 'res-val ' + (co2Y>0?'good':'bad');
+
+  const pct = (1 - p2/p1) * 100;
+  document.getElementById('speedNote').innerHTML = saveD > 0
+    ? `航速由 <b style="color:var(--teal)">${v1} kn</b> 降至 <b style="color:var(--teal)">${v2} kn</b>（-${((1-v2/v1)*100).toFixed(1)}%），按功率≈航速³，轴功率下降 <b>${pct.toFixed(1)}%</b>。叠加 SFOC 随负荷变化，日节油 <b>${saveD.toFixed(2)} t</b>，年减排 CO₂ <b>${co2Y.toFixed(0)} t</b>。注：此为工程估算，实船需考虑船体阻力、海况、燃油品质修正。`
+    : `目标航速高于当前航速，功率与油耗将上升，无节油收益。请确认输入。`;
+}
+
+// ═══════════ CII 碳合规核算 ═══════════
+function calcCii(){
+  const fc = parseFloat(document.getElementById('fc').value);
+  const dwt = parseFloat(document.getElementById('dwt').value);
+  const dist = parseFloat(document.getElementById('dist').value);
+  const ref = parseFloat(document.getElementById('refCii').value);
+  const factor = parseFloat(document.getElementById('year').value);
+  const yearTxt = document.getElementById('year').selectedOptions[0].textContent;
+
+  if(!(fc>0 && dwt>0 && dist>0 && ref>0)){ alert('请输入有效数值'); return; }
+
+  const co2T = fc * CF_HFO;                          // t CO2
+  const cii = co2T * 1e6 / (dwt * dist);             // g CO2/(dwt·nm)
+  const req = ref * factor;                          // 折减后所需 CII
+  const ratio = cii / req;
+
+  let grade = 'E';
+  if(ratio <= 0.80) grade = 'A';
+  else if(ratio <= 0.94) grade = 'B';
+  else if(ratio <= 1.06) grade = 'C';
+  else if(ratio <= 1.18) grade = 'D';
+
+  const badge = document.getElementById('gradeBadge');
+  badge.textContent = grade;
+  badge.className = 'grade-badge grade-' + grade;
+
+  document.getElementById('rCii').textContent = cii.toFixed(3);
+  document.getElementById('rReq').textContent = req.toFixed(3);
+  document.getElementById('rReqN').textContent = `基准 ${ref} × ${factor}（${yearTxt.split(' ')[0]}）`;
+  document.getElementById('rRatio').textContent = ratio.toFixed(3);
+  document.getElementById('rCo2').textContent = co2T.toFixed(0) + ' t';
+
+  document.getElementById('rRatio').className = 'res-val ' +
+    (grade==='A'||grade==='B' ? 'good' : grade==='C' ? 'warn' : 'bad');
+
+  const gradeDesc = {A:'优秀', B:'良好', C:'中等', D:'较差', E:'不合格'}[grade];
+  let note = `本年度营运 CII <b style="color:var(--teal)">${cii.toFixed(3)}</b> gCO₂/(dwt·nm)，所需 CII ${req.toFixed(3)}，评级系数 <b>${ratio.toFixed(3)}</b> → <b style="color:var(--teal)">${grade} 级（${gradeDesc}）</b>。`;
+  if(grade === 'D' || grade === 'E'){
+    note += ` 已达整改触发区间：连续三年 D 级或上一年度 E 级须提交 <b>整改行动计划（CAP）</b>并记入 SEEMP Part III，经船旗国/认可组织批准。建议立即采取降速、船体清污、螺旋桨优化等措施。`;
+  } else if(grade === 'C'){
+    note += ` 建议提前优化：距 B 级阈值（0.94）尚差 ${(ratio-0.94).toFixed(3)}，可通过经济航速与船体维护提升评级。`;
+  } else {
+    note += ` 当前合规余量充足，继续保持能效管理措施。`;
+  }
+  document.getElementById('ciiNote').innerHTML = note;
+}
+
+// ═══════════ INIT ═══════════
+renderLive();
+calcSpeed();
+calcCii();
+setInterval(() => { updateLoad(); renderLive(); }, 1000);
+</script>
+</body>
+</html>

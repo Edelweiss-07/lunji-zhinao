@@ -351,6 +351,15 @@ async def serve_history():
     return {"message": "History page not found — check static/ dir"}
 
 
+@app.get("/energy")
+async def serve_energy():
+    """Serve the energy-efficiency management module (12K98ME-C7)."""
+    page = static_dir / "energy-system.html"
+    if page.exists():
+        return FileResponse(str(page), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    return {"message": "Energy page not found — check static/ dir"}
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7862))
     print("=" * 60)

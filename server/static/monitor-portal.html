@@ -106,6 +106,12 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
 .jump-banner.fuel .jump-banner-title{color:var(--yellow)}
 .jump-banner.fuel .jump-banner-arrow{color:var(--yellow)}
 
+.jump-banner.energy{background:linear-gradient(135deg,rgba(0,214,143,0.12),rgba(0,212,255,0.06));border-color:var(--green)}
+.jump-banner.energy:hover{border-color:var(--green);box-shadow:0 4px 20px rgba(0,214,143,0.25)}
+.jump-banner.energy .jump-banner-icon{animation:none}
+.jump-banner.energy .jump-banner-title{color:var(--green)}
+.jump-banner.energy .jump-banner-arrow{color:var(--green)}
+
 /* 面板切换 Tab */
 .panel-tabs{display:flex;gap:6px;margin-left:14px}
 .panel-tab{padding:5px 14px;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid var(--border);color:var(--tx2);background:var(--bg-card);transition:all .2s;font-family:inherit}
@@ -125,6 +131,8 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
 .action-btn.secondary{border-color:var(--blue)}
 .action-btn.fuel{border-color:var(--yellow);background:rgba(232,164,0,0.05)}
 .action-btn.fuel:hover{background:rgba(232,164,0,0.1);box-shadow:0 0 16px rgba(232,164,0,0.15)}
+.action-btn.energy{border-color:var(--green);background:rgba(0,214,143,0.05)}
+.action-btn.energy:hover{background:rgba(0,214,143,0.1);box-shadow:0 0 16px rgba(0,214,143,0.18)}
 .ab-icon{font-size:28px}
 .ab-info{flex:1}
 .ab-title{font-size:14px;font-weight:600;margin-bottom:2px}
@@ -188,6 +196,16 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
     <div class="jump-banner-info">
       <div class="jump-banner-title">立刻进入「油耗系统」监控面板</div>
       <div class="jump-banner-desc">DSR1 智能体每 5 分钟自动读图 · 4 个油耗参数实时监控 · 能效工况视觉评估</div>
+    </div>
+    <div class="jump-banner-arrow">→</div>
+  </div>
+
+  <!-- 跳转横幅：能效管理与碳合规 -->
+  <div class="jump-banner energy" id="jumpBannerEnergy" onclick="goEnergySystem()" title="点击进入能效管理与碳合规模块（12K98ME-C7）">
+    <div class="jump-banner-icon">🌿</div>
+    <div class="jump-banner-info">
+      <div class="jump-banner-title">立刻进入「能效管理」碳合规模块 <span style="font-size:11px;padding:1px 7px;border:1px solid var(--yellow);color:var(--yellow);border-radius:4px;margin-left:6px">测试</span></div>
+      <div class="jump-banner-desc">SFOC 负荷特性曲线 · 经济航速分析 · CII/EEXI 碳合规核算 · 能效优化建议引擎</div>
     </div>
     <div class="jump-banner-arrow">→</div>
   </div>
@@ -308,6 +326,14 @@ body{font-family:'Segoe UI','Microsoft YaHei',sans-serif;background:var(--bg-dee
       <div class="ab-info">
         <div class="ab-title">进入油耗系统监控</div>
         <div class="ab-desc">12K98ME-C7 油耗系统 · 4 油耗参数 · 能效工况视觉评估</div>
+      </div>
+      <span class="ab-arrow">→</span>
+    </button>
+    <button class="action-btn energy" id="enterEnergyBtn">
+      <span class="ab-icon">🌿</span>
+      <div class="ab-info">
+        <div class="ab-title">进入能效管理（碳合规）</div>
+        <div class="ab-desc">12K98ME-C7 · SFOC 曲线 · 经济航速 · CII/EEXI 核算</div>
       </div>
       <span class="ab-arrow">→</span>
     </button>
@@ -734,6 +760,11 @@ document.getElementById('enterFuelPanelBtn').addEventListener('click', () => {
   openPanel('fuel-system.html', '进入油耗系统监控面板（4 油耗参数 + 智能体诊断）');
 });
 
+document.getElementById('enterEnergyBtn').addEventListener('click', () => {
+  addLog('OK', 'UI', '进入能效管理与碳合规模块（SFOC 曲线 / 经济航速 / CII 核算）');
+  window.open('/static/energy-system.html', '_blank');
+});
+
 document.getElementById('panelCloseBtn').addEventListener('click', () => {
   const section = document.getElementById('panelSection');
   const closeBtn = document.getElementById('panelCloseBtn');
@@ -760,6 +791,11 @@ function goCoolingSystem() {
 function goFuelSystem() {
   addLog('OK', 'UI', '通过门户跳转横幅进入油耗系统监控面板');
   window.open('/static/fuel-system.html', '_blank');
+}
+
+function goEnergySystem() {
+  addLog('OK', 'UI', '通过门户跳转横幅进入能效管理与碳合规模块');
+  window.open('/static/energy-system.html', '_blank');
 }
 
 // ===== INIT =====
