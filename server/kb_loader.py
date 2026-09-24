@@ -38,6 +38,7 @@ INTENT_KB_MAP = {
     "class10_油耗监控": "油耗监测",
     "class11_增压器监测": "涡轮增压器",
     "class12_负载参数": "负载指数",
+    "class13_能效管理": "能效优化",
 }
 
 # Additional KBs used by specific intents
